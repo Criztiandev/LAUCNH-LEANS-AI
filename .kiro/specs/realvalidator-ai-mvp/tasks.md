@@ -19,7 +19,17 @@
   - Test authentication flow with mock user credentials
   - _Requirements: 1.1, 1.2, 8.1, 8.2_
 
-- [ ] 2. Implement core authentication system
+- [x] 2. Implement core authentication system
+
+
+
+
+
+
+
+
+
+
   - Create AuthProvider context component for managing Supabase Auth state
   - Build LoginForm and SignupForm components with form validation using Zod
   - Implement protected route HOC that redirects unauthenticated users
@@ -28,7 +38,9 @@
   - Test protected route behavior with authenticated and unauthenticated users
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 3. Setup tRPC infrastructure and basic API
+- [-] 3. Setup tRPC infrastructure and basic API
+
+
   - Configure tRPC server with Supabase database connection
   - Create base tRPC router with authentication middleware
   - Implement tRPC client setup with TanStack Query integration

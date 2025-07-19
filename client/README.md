@@ -1,4 +1,4 @@
-# RealValidator AI
+# Launch Lens AI
 
 An AI-powered SaaS idea validation platform built with Next.js, Supabase, and shadcn/ui.
 
@@ -33,7 +33,7 @@ An AI-powered SaaS idea validation platform built with Next.js, Supabase, and sh
 1. Clone the repository:
 ```bash
 git clone <repository-url>
-cd realvalidator-ai
+cd launch-lens-ai
 ```
 
 2. Install dependencies:
@@ -88,7 +88,7 @@ npm start
 ## Project Structure
 
 ```
-realvalidator-ai/
+launch-lens-ai/
 ├── src/
 │   ├── app/                 # Next.js App Router pages
 │   ├── components/          # React components

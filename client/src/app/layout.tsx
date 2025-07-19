@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "RealValidator AI",
+  title: "Launch Lens AI",
   description: "AI-powered SaaS idea validation platform",
 };
 

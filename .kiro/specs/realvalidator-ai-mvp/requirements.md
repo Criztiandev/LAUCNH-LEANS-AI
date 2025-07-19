@@ -2,7 +2,7 @@
 
 ## Introduction
 
-RealValidator AI is a SaaS idea validation platform that helps entrepreneurs and product managers validate their business ideas through automated market research, competitor analysis, and AI-powered insights. The platform combines web scraping from multiple sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google) with Google AI Studio's Gemini model to provide comprehensive validation reports including market opportunity analysis, competitive landscape, user feedback sentiment, and strategic recommendations.
+launch-lens AI is a SaaS idea validation platform that helps entrepreneurs and product managers validate their business ideas through automated market research, competitor analysis, and AI-powered insights. The platform combines web scraping from multiple sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google) with Google AI Studio's Gemini model to provide comprehensive validation reports including market opportunity analysis, competitive landscape, user feedback sentiment, and strategic recommendations.
 
 ## Requirements
 

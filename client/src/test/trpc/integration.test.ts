@@ -3,46 +3,54 @@ import { appRouter } from '@/lib/trpc/root'
 import { createTRPCContext } from '@/lib/trpc/server'
 
 // Mock database
-const mockDb = {
-  insert: vi.fn().mockReturnValue({
-    values: vi.fn().mockReturnValue({
-      returning: vi.fn().mockResolvedValue([{
-        id: 'test-id',
-        userId: 'user-id',
-        title: 'Test Validation',
-        ideaText: 'Test idea description',
-        status: 'processing',
-        createdAt: new Date(),
-      }])
-    })
-  }),
-  select: vi.fn().mockReturnValue({
-    from: vi.fn().mockReturnValue({
-      where: vi.fn().mockReturnValue({
-        orderBy: vi.fn().mockResolvedValue([]),
-        limit: vi.fn().mockResolvedValue([])
+vi.mock('@/lib/db', () => {
+  const mockDb = {
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{
+          id: 'test-id',
+          userId: 'user-id',
+          title: 'Test Validation',
+          ideaText: 'Test idea description',
+          status: 'processing',
+          createdAt: new Date(),
+        }])
+      })
+    }),
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        where: vi.fn().mockReturnValue({
+          orderBy: vi.fn().mockResolvedValue([]),
+          limit: vi.fn().mockResolvedValue([])
+        })
       })
     })
-  })
-}
+  }
+  
+  return {
+    db: mockDb
+  }
+})
 
 // Mock Supabase
-const mockSupabase = {
-  auth: {
-    getUser: vi.fn().mockResolvedValue({
-      data: { user: { id: 'user-id', email: 'test@example.com' } },
-      error: null
-    })
+vi.mock('@/lib/supabase', () => {
+  const mockSupabase = {
+    auth: {
+      getUser: vi.fn().mockResolvedValue({
+        data: { user: { id: 'user-id', email: 'test@example.com' } },
+        error: null
+      })
+    }
   }
-}
+  
+  return {
+    supabase: mockSupabase
+  }
+})
 
-vi.mock('@/lib/db', () => ({
-  db: mockDb
-}))
-
-vi.mock('@/lib/supabase', () => ({
-  supabase: mockSupabase
-}))
+// Get the mocked instances for test assertions (if needed)
+// const { db: mockDb } = await import('@/lib/db')
+// const { supabase: mockSupabase } = await import('@/lib/supabase')
 
 describe('tRPC Integration', () => {
   beforeEach(() => {

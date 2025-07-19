@@ -68,15 +68,18 @@ describe('Database Schema', () => {
   it('should have correct type exports', () => {
     // This test ensures our TypeScript types are properly exported
     // The actual type checking happens at compile time
-    expect(typeof validations.$inferSelect).toBe('object')
-    expect(typeof validations.$inferInsert).toBe('object')
-    expect(typeof competitors.$inferSelect).toBe('object')
-    expect(typeof competitors.$inferInsert).toBe('object')
-    expect(typeof feedback.$inferSelect).toBe('object')
-    expect(typeof feedback.$inferInsert).toBe('object')
-    expect(typeof aiAnalysis.$inferSelect).toBe('object')
-    expect(typeof aiAnalysis.$inferInsert).toBe('object')
-    expect(typeof profiles.$inferSelect).toBe('object')
-    expect(typeof profiles.$inferInsert).toBe('object')
+    // We test that the schema objects are properly constructed Drizzle tables
+    expect(typeof validations).toBe('object')
+    expect(typeof competitors).toBe('object')
+    expect(typeof feedback).toBe('object')
+    expect(typeof aiAnalysis).toBe('object')
+    expect(typeof profiles).toBe('object')
+    
+    // Test that they have the basic table structure
+    expect(validations).toHaveProperty('id')
+    expect(competitors).toHaveProperty('id')
+    expect(feedback).toHaveProperty('id')
+    expect(aiAnalysis).toHaveProperty('id')
+    expect(profiles).toHaveProperty('id')
   })
 })

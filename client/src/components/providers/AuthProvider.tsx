@@ -45,6 +45,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       email,
       password,
     })
+    
+    if (!error) {
+      // Redirect will be handled by the auth state change listener
+      window.location.href = '/dashboard'
+    }
+    
     return { error }
   }
 

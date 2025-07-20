@@ -10,6 +10,7 @@ from datetime import datetime
 from google_play_scraper import search, app, reviews, Sort, exceptions
 
 from .base_scraper import BaseScraper, ScrapingResult, ScrapingStatus, CompetitorData, FeedbackData
+from ..utils.data_cleaner import DataCleaner
 
 
 logger = logging.getLogger(__name__)
@@ -287,9 +288,10 @@ class GooglePlayStoreScraper(BaseScraper):
                         logger.debug(f"Failed to get app details for {app_data['appId']}: {str(e)}")
                 
                 # Create competitor data using available information
+                raw_description = app_details.get('description') if app_details else app_data.get('summary')
                 competitor = CompetitorData(
-                    name=app_data.get('title', 'Unknown App'),
-                    description=app_details.get('description') if app_details else app_data.get('summary'),
+                    name=DataCleaner.clean_html_text(app_data.get('title', 'Unknown App')),
+                    description=DataCleaner.clean_html_text(raw_description),
                     website=app_details.get('developerWebsite') if app_details else None,
                     estimated_users=self._format_installs(app_details.get('installs') if app_details else None),
                     estimated_revenue=None,  # Not available from Play Store API
@@ -298,7 +300,7 @@ class GooglePlayStoreScraper(BaseScraper):
                     source_url=f"https://play.google.com/store/apps/details?id={app_data['appId']}",
                     confidence_score=0.9 if app_details else 0.8,  # Higher confidence with detailed data
                     launch_date=app_details.get('released') if app_details else None,
-                    founder_ceo=app_data.get('developer'),
+                    founder_ceo=DataCleaner.clean_html_text(app_data.get('developer')),
                     review_count=app_details.get('reviews') if app_details else None,
                     average_rating=app_data.get('score')
                 )
@@ -306,7 +308,8 @@ class GooglePlayStoreScraper(BaseScraper):
                 competitors.append(competitor)
                 
             except Exception as e:
-                logger.debug(f"Failed to create co
+                logger.debug(f"Failed to create competitor data for app: {str(e)}")
+                continue
         
         return competitors
     
@@ -332,15 +335,15 @@ class GooglePlayStoreScraper(BaseScraper):
                 
                 for review in app_reviews:
                     feedback_item = FeedbackData(
-                        text=review.get('content', ''),
+                        text=DataCleaner.clean_html_text(review.get('content', '')),
                         sentiment=None,  # Will be analyzed later
                         sentiment_score=review.get('score'),  # Use review score as sentiment indicator
                         source=self.source_name,
                         source_url=f"https://play.google.com/store/apps/details?id={app_id}",
                         author_info={
-                            'app_name': app_name,
+                            'app_name': DataCleaner.clean_html_text(app_name),
                             'app_id': app_id,
-                            'reviewer': review.get('userName'),
+                            'reviewer': DataCleaner.clean_html_text(review.get('userName')),
                             'review_date': review.get('at'),
                             'thumbs_up': review.get('thumbsUpCount', 0)
                         }

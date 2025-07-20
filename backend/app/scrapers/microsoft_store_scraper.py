@@ -12,6 +12,7 @@ from patchright.async_api import Page
 
 from .base_scraper import BaseScraper, ScrapingResult, ScrapingStatus, CompetitorData, FeedbackData
 from ..services.headless_browser_service import get_browser_service
+from ..utils.data_cleaner import DataCleaner
 
 
 logger = logging.getLogger(__name__)
@@ -472,8 +473,8 @@ class MicrosoftStoreScraper(BaseScraper):
                 
                 # Create competitor data
                 competitor = CompetitorData(
-                    name=app['name'],
-                    description=app_details.get('description') if app_details else None,
+                    name=DataCleaner.clean_html_text(app['name']),
+                    description=DataCleaner.clean_html_text(app_details.get('description')) if app_details else None,
                     website=app_details.get('website') if app_details else None,
                     estimated_users=None,  # Not available from Microsoft Store
                     estimated_revenue=None,  # Not available from Microsoft Store
@@ -482,7 +483,7 @@ class MicrosoftStoreScraper(BaseScraper):
                     source_url=app.get('app_url'),
                     confidence_score=0.8,  # High confidence for Microsoft Store data
                     launch_date=app_details.get('release_date') if app_details else None,
-                    founder_ceo=app.get('developer'),
+                    founder_ceo=DataCleaner.clean_html_text(app.get('developer')),
                     review_count=app_details.get('review_count') if app_details else None,
                     average_rating=app.get('rating')
                 )
@@ -512,12 +513,12 @@ class MicrosoftStoreScraper(BaseScraper):
                     
                     for review in reviews[:3]:  # Limit to 3 reviews per app
                         feedback_item = FeedbackData(
-                            text=review.get('text', ''),
+                            text=DataCleaner.clean_html_text(review.get('text', '')),
                             sentiment=review.get('sentiment'),
                             sentiment_score=review.get('sentiment_score'),
                             source=self.source_name,
                             source_url=app['app_url'],
-                            author_info={'app_name': app['name']}
+                            author_info={'app_name': DataCleaner.clean_html_text(app['name'])}
                         )
                         feedback.append(feedback_item)
                     

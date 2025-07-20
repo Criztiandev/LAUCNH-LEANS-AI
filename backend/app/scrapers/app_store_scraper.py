@@ -20,6 +20,7 @@ except ImportError:
         AppStoreEntry = None
 
 from .base_scraper import BaseScraper, ScrapingResult, ScrapingStatus, CompetitorData, FeedbackData
+from ..utils.data_cleaner import DataCleaner
 
 
 logger = logging.getLogger(__name__)
@@ -371,8 +372,8 @@ class AppStoreScraper(BaseScraper):
                     continue
                 
                 competitor = CompetitorData(
-                    name=app_name,
-                    description=app_data.get('description', ''),
+                    name=DataCleaner.clean_html_text(app_name),
+                    description=DataCleaner.clean_html_text(app_data.get('description', '')),
                     website=app_data.get('developer_url'),
                     estimated_users=None,
                     estimated_revenue=None,
@@ -381,7 +382,7 @@ class AppStoreScraper(BaseScraper):
                     source_url=app_data.get('url') or app_data.get('app_url', ''),
                     confidence_score=0.8,
                     launch_date=app_data.get('release_date'),
-                    founder_ceo=app_data.get('developer') or app_data.get('artist_name'),
+                    founder_ceo=DataCleaner.clean_html_text(app_data.get('developer') or app_data.get('artist_name')),
                     review_count=app_data.get('rating_count'),
                     average_rating=app_data.get('rating') or app_data.get('average_rating')
                 )
@@ -413,17 +414,17 @@ class AppStoreScraper(BaseScraper):
                 
                 for review in app_reviews:
                     feedback_item = FeedbackData(
-                        text=review.get('review') or review.get('content', ''),
+                        text=DataCleaner.clean_html_text(review.get('review') or review.get('content', '')),
                         sentiment=None,
                         sentiment_score=review.get('rating'),
                         source=self.source_name,
                         source_url=app_data.get('url') or app_data.get('app_url', ''),
                         author_info={
-                            'app_name': app_name,
+                            'app_name': DataCleaner.clean_html_text(app_name),
                             'app_id': str(app_id),
-                            'reviewer': review.get('user_name') or review.get('author'),
+                            'reviewer': DataCleaner.clean_html_text(review.get('user_name') or review.get('author')),
                             'review_date': review.get('date'),
-                            'review_title': review.get('title'),
+                            'review_title': DataCleaner.clean_html_text(review.get('title')),
                             'rating': review.get('rating')
                         }
                     )

@@ -14,6 +14,9 @@ aiohttp==3.10.11
 beautifulsoup4==4.12.3
 lxml==5.3.0
 
+# Headless browser automation (Patchright)
+patchright==1.47.0
+
 # Reddit API scraping
 praw==7.7.1
 
@@ -26,6 +29,9 @@ tweepy==4.14.0
 
 # Instagram scraping
 instaloader==4.10.3
+
+# Google AI Studio integration
+google-generativeai==0.8.3
 
 # Google services
 google-api-python-client==2.108.0
@@ -44,3 +50,11 @@ webdriver-manager==4.0.1
 # Additional utilities
 user-agent==0.1.10
 fake-useragent==1.4.0
+
+# Data export functionality
+pandas==2.2.3
+openpyxl==3.1.5
+
+# Enhanced sentiment analysis
+textblob==0.18.0
+vaderSentiment==3.3.2

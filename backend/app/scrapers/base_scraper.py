@@ -31,6 +31,8 @@ class CompetitorData:
     most_helpful_review: Optional[str] = None
     review_count: Optional[int] = None
     average_rating: Optional[float] = None
+    comments: Optional[List[Dict[str, Any]]] = None
+    sentiment_summary: Optional[Dict[str, Any]] = None
 
 
 @dataclass

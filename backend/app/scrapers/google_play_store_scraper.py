@@ -11,6 +11,7 @@ from google_play_scraper import search, app, reviews, Sort, exceptions
 
 from .base_scraper import BaseScraper, ScrapingResult, ScrapingStatus, CompetitorData, FeedbackData
 from ..utils.data_cleaner import DataCleaner
+from ..services.sentiment_analysis_service import SentimentAnalysisService
 
 
 logger = logging.getLogger(__name__)
@@ -28,6 +29,8 @@ class GooglePlayStoreScraper(BaseScraper):
         self.delay_between_requests = (1, 3)  # Shorter delays since no browser automation
         self.supported_languages = ['en']  # Supported languages for search
         self.supported_countries = ['us']  # Supported countries for search
+        self.sentiment_analyzer = SentimentAnalysisService()
+        self.max_comments_per_app = 5
     
     def validate_config(self) -> bool:
         """
@@ -129,6 +132,24 @@ class GooglePlayStoreScraper(BaseScraper):
             # Remove duplicate competitors and feedback
             unique_competitors = self._deduplicate_competitors(competitors)
             unique_feedback = self._deduplicate_feedback(feedback)
+            
+            # Initialize comments and sentiment_summary for all competitors
+            for competitor in unique_competitors:
+                await self._add_comments_to_competitor(competitor, [])
+            
+            # Extract comments and sentiment analysis for top competitors
+            for competitor in unique_competitors[:5]:  # Only get comments for top 5
+                try:
+                    # Extract reviews as comments with sentiment analysis
+                    competitor_comments = await self._extract_reviews_with_sentiment(competitor)
+                    
+                    # Update with actual comments and sentiment summary
+                    await self._add_comments_to_competitor(competitor, competitor_comments)
+                    
+                    await asyncio.sleep(0.5)  # Small delay between requests
+                except Exception as e:
+                    logger.warning(f"Failed to extract comments for {competitor.name}: {str(e)}")
+                    continue
             
             # Determine scraping status
             if metadata["successful_queries"] > 0:
@@ -302,7 +323,9 @@ class GooglePlayStoreScraper(BaseScraper):
                     launch_date=app_details.get('released') if app_details else None,
                     founder_ceo=DataCleaner.clean_html_text(app_data.get('developer')),
                     review_count=app_details.get('reviews') if app_details else None,
-                    average_rating=app_data.get('score')
+                    average_rating=app_data.get('score'),
+                    comments=[],  # Initialize empty comments
+                    sentiment_summary=None  # Will be set later
                 )
                 
                 competitors.append(competitor)
@@ -358,6 +381,133 @@ class GooglePlayStoreScraper(BaseScraper):
                 continue
         
         return feedback
+    
+    async def _extract_reviews_with_sentiment(self, competitor: CompetitorData) -> List[Dict[str, Any]]:
+        """
+        Extract reviews with sentiment analysis for a Google Play Store app.
+        
+        Args:
+            competitor: CompetitorData object with source_url
+            
+        Returns:
+            List of review dictionaries with sentiment analysis
+        """
+        comments = []
+        
+        if not competitor.source_url:
+            return comments
+        
+        try:
+            # Extract app ID from source URL
+            app_id = competitor.source_url.split('id=')[1].split('&')[0] if 'id=' in competitor.source_url else None
+            if not app_id:
+                return comments
+            
+            # Get reviews for this app
+            app_reviews = await self._get_app_reviews(app_id)
+            
+            # Process and analyze sentiment for top reviews
+            for i, review in enumerate(app_reviews[:self.max_comments_per_app]):
+                try:
+                    review_text = DataCleaner.clean_html_text(review.get('content', ''))
+                    if not review_text or len(review_text.strip()) < 10:
+                        continue
+                    
+                    # Analyze sentiment
+                    sentiment_result = self.sentiment_analyzer.analyze_sentiment(review_text)
+                    
+                    comment_with_sentiment = {
+                        'text': review_text,
+                        'author': DataCleaner.clean_html_text(review.get('userName', 'Anonymous')),
+                        'sentiment': {
+                            'label': sentiment_result.label.value,
+                            'score': sentiment_result.score,
+                            'confidence': sentiment_result.confidence
+                        },
+                        'position': i + 1,
+                        'rating': review.get('score'),  # Google Play Store specific
+                        'thumbs_up': review.get('thumbsUpCount', 0)  # Google Play Store specific
+                    }
+                    
+                    comments.append(comment_with_sentiment)
+                    
+                except Exception as e:
+                    logger.debug(f"Failed to process review: {str(e)}")
+                    continue
+            
+            logger.info(f"Extracted {len(comments)} reviews with sentiment for {competitor.name}")
+            
+        except Exception as e:
+            logger.debug(f"Failed to extract reviews with sentiment for {competitor.name}: {str(e)}")
+        
+        return comments
+    
+    async def _add_comments_to_competitor(self, competitor: CompetitorData, comments: List[Dict[str, Any]]) -> None:
+        """
+        Add comments and sentiment summary to competitor data.
+        
+        Args:
+            competitor: CompetitorData object to enhance
+            comments: List of comments with sentiment analysis
+        """
+        # Always set comments field, even if empty
+        competitor.comments = comments if comments else []
+        
+        if not comments:
+            # Set empty sentiment summary if no comments
+            competitor.sentiment_summary = {
+                'total_comments': 0,
+                'positive_count': 0,
+                'negative_count': 0,
+                'neutral_count': 0,
+                'positive_percentage': 0.0,
+                'negative_percentage': 0.0,
+                'neutral_percentage': 0.0,
+                'average_sentiment_score': 0.0,
+                'overall_sentiment': 'neutral'
+            }
+            return
+        
+        # Calculate sentiment summary
+        sentiment_labels = [comment['sentiment']['label'] for comment in comments]
+        sentiment_scores = [comment['sentiment']['score'] for comment in comments]
+        
+        positive_count = sentiment_labels.count('positive')
+        negative_count = sentiment_labels.count('negative')
+        neutral_count = sentiment_labels.count('neutral')
+        
+        average_sentiment_score = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
+        
+        competitor.sentiment_summary = {
+            'total_comments': len(comments),
+            'positive_count': positive_count,
+            'negative_count': negative_count,
+            'neutral_count': neutral_count,
+            'positive_percentage': round((positive_count / len(comments)) * 100, 1),
+            'negative_percentage': round((negative_count / len(comments)) * 100, 1),
+            'neutral_percentage': round((neutral_count / len(comments)) * 100, 1),
+            'average_sentiment_score': round(average_sentiment_score, 3),
+            'overall_sentiment': self._determine_overall_sentiment(average_sentiment_score)
+        }
+        
+        logger.info(f"Added {len(comments)} reviews and sentiment summary to {competitor.name}")
+    
+    def _determine_overall_sentiment(self, average_score: float) -> str:
+        """
+        Determine overall sentiment based on average score.
+        
+        Args:
+            average_score: Average sentiment score
+            
+        Returns:
+            Overall sentiment label
+        """
+        if average_score > 0.1:
+            return 'positive'
+        elif average_score < -0.1:
+            return 'negative'
+        else:
+            return 'neutral'
     
     def _generate_search_queries(self, keywords: List[str], idea_text: str) -> List[str]:
         """

@@ -11,6 +11,8 @@ import aiohttp
 from bs4 import BeautifulSoup
 
 from .base_scraper import BaseScraper, ScrapingResult, ScrapingStatus, CompetitorData, FeedbackData
+from ..utils.data_cleaner import DataCleaner
+from ..services.sentiment_analysis_service import SentimentAnalysisService
 
 
 logger = logging.getLogger(__name__)
@@ -33,6 +35,8 @@ class ProductHuntScraper(BaseScraper):
             'Upgrade-Insecure-Requests': '1',
         }
         self.session: Optional[aiohttp.ClientSession] = None
+        self.sentiment_analyzer = SentimentAnalysisService()
+        self.max_comments_per_product = 5
     
     async def scrape(self, keywords: List[str], idea_text: str) -> ScrapingResult:
         """
@@ -76,10 +80,26 @@ class ProductHuntScraper(BaseScraper):
             # Limit results to avoid overwhelming the system
             final_competitors = unique_competitors[:10]
             
-            # Extract additional details for top competitors
+            # Initialize comments and sentiment_summary for all competitors
+            for competitor in final_competitors:
+                # Set default empty values for all competitors
+                await self._add_comments_to_competitor(competitor, [])
+            
+            # Extract additional details and comments for top competitors
             for competitor in final_competitors[:5]:  # Only get details for top 5
                 try:
                     await self._enrich_competitor_data(competitor)
+                    
+                    # Extract comments for this competitor with sentiment analysis
+                    competitor_comments = await self._extract_comments_with_sentiment(competitor)
+                    
+                    # Update with actual comments and sentiment summary
+                    await self._add_comments_to_competitor(competitor, competitor_comments)
+                    
+                    # Also add to feedback for backward compatibility
+                    competitor_feedback = await self._extract_comments(competitor)
+                    feedback.extend(competitor_feedback)
+                    
                     await asyncio.sleep(0.5)  # Small delay between requests
                 except Exception as e:
                     logger.warning(f"Failed to enrich data for {competitor.name}: {str(e)}")
@@ -249,15 +269,17 @@ class ProductHuntScraper(BaseScraper):
             tags = [tag.get_text(strip=True) for tag in tag_anchors]
             
             return CompetitorData(
-                name=name,
-                description=description,
+                name=DataCleaner.clean_html_text(name),
+                description=DataCleaner.clean_html_text(description),
                 website=external_link,  # Will be resolved later if needed
                 estimated_users=estimated_users,
                 estimated_revenue=None,  # Will be estimated later
                 pricing_model=None,  # Will be enriched later
                 source=self.source_name,
                 source_url=source_url,
-                confidence_score=0.8  # Higher confidence for structured data
+                confidence_score=0.8,  # Higher confidence for structured data
+                comments=[],  # Initialize empty comments
+                sentiment_summary=None  # Will be set later
             )
             
         except Exception as e:
@@ -313,7 +335,7 @@ class ProductHuntScraper(BaseScraper):
                     # Try to extract more detailed description
                     detailed_desc = soup.find(['div', 'p'], class_=re.compile(r'.*description.*|.*detail.*'))
                     if detailed_desc and len(detailed_desc.get_text(strip=True)) > len(competitor.description or ""):
-                        competitor.description = detailed_desc.get_text(strip=True)
+                        competitor.description = DataCleaner.clean_html_text(detailed_desc.get_text(strip=True))
                     
             except Exception as e:
                 logger.debug(f"Failed to enrich from Product Hunt page for {competitor.name}: {str(e)}")
@@ -340,6 +362,378 @@ class ProductHuntScraper(BaseScraper):
         
         # Increase confidence score for enriched data
         competitor.confidence_score = min(0.95, competitor.confidence_score + 0.15)
+    
+    async def _extract_comments_with_sentiment(self, competitor: CompetitorData) -> List[Dict[str, Any]]:
+        """
+        Extract comments with sentiment analysis for a Product Hunt product.
+        
+        Args:
+            competitor: CompetitorData object with source_url
+            
+        Returns:
+            List of comment dictionaries with sentiment analysis
+        """
+        comments = []
+        
+        if not competitor.source_url:
+            return comments
+        
+        try:
+            async with self.session.get(competitor.source_url) as response:
+                if response.status != 200:
+                    logger.debug(f"Failed to fetch comments page for {competitor.name}: {response.status}")
+                    return comments
+                
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # Extract raw comments
+                raw_comments = []
+                
+                # Try to extract comments from JSON data first
+                json_comments = self._extract_comments_from_json(html)
+                raw_comments.extend(json_comments)
+                
+                # If not enough comments from JSON, try HTML extraction
+                if len(raw_comments) < self.max_comments_per_product:
+                    html_comments = self._extract_comments_from_html(soup)
+                    raw_comments.extend(html_comments)
+                
+                # Process and analyze sentiment for top comments
+                for i, comment_data in enumerate(raw_comments[:self.max_comments_per_product]):
+                    try:
+                        comment_text = DataCleaner.clean_html_text(comment_data.get('text', ''))
+                        if not comment_text or len(comment_text.strip()) < 10:
+                            continue
+                        
+                        # Analyze sentiment
+                        sentiment_result = self.sentiment_analyzer.analyze_sentiment(comment_text)
+                        
+                        comment_with_sentiment = {
+                            'text': comment_text,
+                            'author': DataCleaner.clean_html_text(comment_data.get('author', 'Anonymous')),
+                            'sentiment': {
+                                'label': sentiment_result.label.value,
+                                'score': sentiment_result.score,
+                                'confidence': sentiment_result.confidence
+                            },
+                            'position': i + 1
+                        }
+                        
+                        comments.append(comment_with_sentiment)
+                        
+                    except Exception as e:
+                        logger.debug(f"Failed to process comment: {str(e)}")
+                        continue
+                
+                logger.info(f"Extracted {len(comments)} comments with sentiment for {competitor.name}")
+                
+        except Exception as e:
+            logger.debug(f"Failed to extract comments with sentiment for {competitor.name}: {str(e)}")
+        
+        return comments
+    
+    async def _add_comments_to_competitor(self, competitor: CompetitorData, comments: List[Dict[str, Any]]) -> None:
+        """
+        Add comments and sentiment summary to competitor data.
+        
+        Args:
+            competitor: CompetitorData object to enhance
+            comments: List of comments with sentiment analysis
+        """
+        # Always set comments field, even if empty
+        competitor.comments = comments if comments else []
+        
+        if not comments:
+            # Set empty sentiment summary if no comments
+            competitor.sentiment_summary = {
+                'total_comments': 0,
+                'positive_count': 0,
+                'negative_count': 0,
+                'neutral_count': 0,
+                'positive_percentage': 0.0,
+                'negative_percentage': 0.0,
+                'neutral_percentage': 0.0,
+                'average_sentiment_score': 0.0,
+                'overall_sentiment': 'neutral'
+            }
+            return
+        
+        # Calculate sentiment summary
+        sentiment_labels = [comment['sentiment']['label'] for comment in comments]
+        sentiment_scores = [comment['sentiment']['score'] for comment in comments]
+        
+        positive_count = sentiment_labels.count('positive')
+        negative_count = sentiment_labels.count('negative')
+        neutral_count = sentiment_labels.count('neutral')
+        
+        average_sentiment_score = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
+        
+        competitor.sentiment_summary = {
+            'total_comments': len(comments),
+            'positive_count': positive_count,
+            'negative_count': negative_count,
+            'neutral_count': neutral_count,
+            'positive_percentage': round((positive_count / len(comments)) * 100, 1),
+            'negative_percentage': round((negative_count / len(comments)) * 100, 1),
+            'neutral_percentage': round((neutral_count / len(comments)) * 100, 1),
+            'average_sentiment_score': round(average_sentiment_score, 3),
+            'overall_sentiment': self._determine_overall_sentiment(average_sentiment_score)
+        }
+        
+        logger.info(f"Added {len(comments)} comments and sentiment summary to {competitor.name}")
+    
+    def _determine_overall_sentiment(self, average_score: float) -> str:
+        """
+        Determine overall sentiment based on average score.
+        
+        Args:
+            average_score: Average sentiment score
+            
+        Returns:
+            Overall sentiment label
+        """
+        if average_score > 0.1:
+            return 'positive'
+        elif average_score < -0.1:
+            return 'negative'
+        else:
+            return 'neutral'
+    
+    def _extract_comments_from_html(self, soup: BeautifulSoup) -> List[Dict[str, Any]]:
+        """
+        Extract comments from HTML elements.
+        
+        Args:
+            soup: BeautifulSoup object of the product page
+            
+        Returns:
+            List of comment dictionaries
+        """
+        comments = []
+        
+        try:
+            # Try to find comment containers with various selectors
+            comment_elements = []
+            
+            # Pattern 1: Look for comment containers with specific classes
+            comment_containers = soup.find_all(['div', 'article'], class_=re.compile(r'.*comment.*|.*review.*|.*feedback.*', re.I))
+            comment_elements.extend(comment_containers)
+            
+            # Pattern 2: Look for user-generated content areas
+            user_content = soup.find_all(['div', 'section'], class_=re.compile(r'.*user.*|.*discussion.*|.*conversation.*', re.I))
+            comment_elements.extend(user_content)
+            
+            for element in comment_elements[:10]:  # Limit to 10 potential comments
+                try:
+                    comment_text = self._extract_comment_text(element)
+                    if comment_text and len(comment_text.strip()) > 10:
+                        
+                        # Extract author info if available
+                        author_element = element.find(['span', 'div', 'a'], class_=re.compile(r'.*author.*|.*user.*|.*name.*', re.I))
+                        author = author_element.get_text(strip=True) if author_element else 'Anonymous'
+                        
+                        comments.append({
+                            'text': comment_text.strip(),
+                            'author': author
+                        })
+                        
+                except Exception as e:
+                    logger.debug(f"Failed to extract HTML comment: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.debug(f"Failed to extract comments from HTML: {str(e)}")
+        
+        return comments
+    
+    async def _extract_comments(self, competitor: CompetitorData) -> List[FeedbackData]:
+        """
+        Extract comments from a Product Hunt product page.
+        
+        Args:
+            competitor: CompetitorData object with source_url
+            
+        Returns:
+            List of FeedbackData objects containing comments
+        """
+        comments = []
+        
+        if not competitor.source_url:
+            return comments
+        
+        try:
+            async with self.session.get(competitor.source_url) as response:
+                if response.status != 200:
+                    logger.debug(f"Failed to fetch comments page for {competitor.name}: {response.status}")
+                    return comments
+                
+                html = await response.text()
+                soup = BeautifulSoup(html, 'html.parser')
+                
+                # Try to extract comments from various Product Hunt comment structures
+                comment_elements = []
+                
+                # Pattern 1: Look for comment containers with specific classes
+                comment_containers = soup.find_all(['div', 'article'], class_=re.compile(r'.*comment.*|.*review.*|.*feedback.*', re.I))
+                comment_elements.extend(comment_containers)
+                
+                # Pattern 2: Look for structured comment data in JSON
+                comment_data = self._extract_comments_from_json(html)
+                if comment_data:
+                    for comment_info in comment_data:
+                        feedback_item = FeedbackData(
+                            text=DataCleaner.clean_html_text(comment_info.get('text', '')),
+                            source=self.source_name,
+                            source_url=competitor.source_url,
+                            author_info={
+                                'product_name': DataCleaner.clean_html_text(competitor.name),
+                                'author': DataCleaner.clean_html_text(comment_info.get('author', 'Anonymous')),
+                                'comment_type': 'product_hunt_comment'
+                            }
+                        )
+                        comments.append(feedback_item)
+                
+                # Pattern 3: Extract from HTML elements
+                for element in comment_elements[:10]:  # Limit to 10 comments per product
+                    try:
+                        comment_text = self._extract_comment_text(element)
+                        if comment_text and len(comment_text.strip()) > 10:  # Only meaningful comments
+                            
+                            # Extract author info if available
+                            author_element = element.find(['span', 'div', 'a'], class_=re.compile(r'.*author.*|.*user.*|.*name.*', re.I))
+                            author = author_element.get_text(strip=True) if author_element else 'Anonymous'
+                            
+                            feedback_item = FeedbackData(
+                                text=DataCleaner.clean_html_text(comment_text.strip()),
+                                source=self.source_name,
+                                source_url=competitor.source_url,
+                                author_info={
+                                    'product_name': DataCleaner.clean_html_text(competitor.name),
+                                    'author': DataCleaner.clean_html_text(author),
+                                    'comment_type': 'product_hunt_comment'
+                                }
+                            )
+                            comments.append(feedback_item)
+                            
+                    except Exception as e:
+                        logger.debug(f"Failed to extract comment: {str(e)}")
+                        continue
+                
+                logger.info(f"Extracted {len(comments)} comments for {competitor.name}")
+                
+        except Exception as e:
+            logger.debug(f"Failed to extract comments for {competitor.name}: {str(e)}")
+        
+        return comments
+    
+    def _extract_comments_from_json(self, html: str) -> List[Dict[str, Any]]:
+        """
+        Extract comments from embedded JSON data in Product Hunt pages.
+        
+        Args:
+            html: HTML content of the page
+            
+        Returns:
+            List of comment dictionaries
+        """
+        comments = []
+        
+        try:
+            import json
+            
+            # Look for comment data in various JSON patterns
+            patterns = [
+                r'"comments":\s*\[([^\]]*)\]',
+                r'"reviews":\s*\[([^\]]*)\]',
+                r'"feedback":\s*\[([^\]]*)\]'
+            ]
+            
+            for pattern in patterns:
+                matches = re.findall(pattern, html, re.DOTALL)
+                for match in matches:
+                    try:
+                        # Try to parse the comment data
+                        comment_json = f'[{match}]'
+                        cleaned_json = comment_json.replace('undefined', 'null')
+                        comment_data = json.loads(cleaned_json)
+                        
+                        for comment in comment_data:
+                            if isinstance(comment, dict):
+                                text = comment.get('text') or comment.get('body') or comment.get('content')
+                                author = comment.get('author') or comment.get('user') or comment.get('name')
+                                
+                                if text and len(text.strip()) > 10:
+                                    comments.append({
+                                        'text': text.strip(),
+                                        'author': author or 'Anonymous'
+                                    })
+                                    
+                    except (json.JSONDecodeError, Exception) as e:
+                        logger.debug(f"Failed to parse comment JSON: {str(e)}")
+                        continue
+            
+            # Also look for individual comment objects
+            comment_pattern = r'\{"text":"([^"]+)","author":"([^"]*)"[^}]*\}'
+            comment_matches = re.findall(comment_pattern, html)
+            
+            for text, author in comment_matches:
+                if len(text.strip()) > 10:
+                    comments.append({
+                        'text': text.strip(),
+                        'author': author or 'Anonymous'
+                    })
+            
+        except Exception as e:
+            logger.debug(f"Failed to extract comments from JSON: {str(e)}")
+        
+        return comments[:10]  # Limit to 10 comments
+    
+    def _extract_comment_text(self, element) -> Optional[str]:
+        """
+        Extract comment text from a BeautifulSoup element.
+        
+        Args:
+            element: BeautifulSoup element containing comment
+            
+        Returns:
+            Comment text or None if extraction fails
+        """
+        try:
+            # Try different approaches to extract comment text
+            
+            # Approach 1: Look for specific comment text elements
+            text_elements = element.find_all(['p', 'div', 'span'], class_=re.compile(r'.*text.*|.*content.*|.*body.*', re.I))
+            for text_elem in text_elements:
+                text = text_elem.get_text(strip=True)
+                if text and len(text) > 10:
+                    return text
+            
+            # Approach 2: Get all text from the element, filtering out navigation/UI text
+            all_text = element.get_text(strip=True)
+            
+            # Filter out common UI elements and short text
+            if all_text and len(all_text) > 10:
+                # Remove common UI text patterns
+                ui_patterns = [
+                    r'reply|like|share|report|delete|edit',
+                    r'\d+\s*(likes?|replies?|hours?|days?|ago)',
+                    r'show more|show less|read more'
+                ]
+                
+                filtered_text = all_text
+                for pattern in ui_patterns:
+                    filtered_text = re.sub(pattern, '', filtered_text, flags=re.IGNORECASE)
+                
+                filtered_text = filtered_text.strip()
+                if len(filtered_text) > 10:
+                    return filtered_text
+            
+            return None
+            
+        except Exception as e:
+            logger.debug(f"Failed to extract comment text: {str(e)}")
+            return None
     
     async def _extract_structured_data(self, competitor: CompetitorData, soup: BeautifulSoup) -> None:
         """
@@ -381,7 +775,7 @@ class ProductHuntScraper(BaseScraper):
                                 if item['author']:
                                     first_author = item['author'][0]
                                     if isinstance(first_author, dict) and 'name' in first_author:
-                                        competitor.founder_ceo = first_author['name']
+                                        competitor.founder_ceo = DataCleaner.clean_html_text(first_author['name'])
                             
                             # Extract rating information
                             if 'aggregateRating' in item:
@@ -393,7 +787,7 @@ class ProductHuntScraper(BaseScraper):
                             
                             # Update description if we have a more detailed one
                             if 'description' in item and len(item['description']) > len(competitor.description or ""):
-                                competitor.description = item['description']
+                                competitor.description = DataCleaner.clean_html_text(item['description'])
                         
                         # Extract review information
                         elif item.get('@type') == 'Review':
@@ -405,10 +799,10 @@ class ProductHuntScraper(BaseScraper):
                                 
                                 # Add author name if available
                                 if 'author' in item and isinstance(item['author'], dict) and 'name' in item['author']:
-                                    author_name = item['author']['name']
+                                    author_name = DataCleaner.clean_html_text(item['author']['name'])
                                     review_text = f'"{review_text}" - {author_name}'
                                 
-                                competitor.most_helpful_review = review_text
+                                competitor.most_helpful_review = DataCleaner.clean_html_text(review_text)
                             if 'reviewBody' in item and 'reviewRating' in item:
                                 rating_value = item['reviewRating'].get('ratingValue', 0)
                                 # Consider reviews with rating 4+ as potentially helpful
@@ -416,7 +810,7 @@ class ProductHuntScraper(BaseScraper):
                                     review_text = item['reviewBody']
                                     # Store the review if it's substantial (more than 50 characters)
                                     if len(review_text) > 50:
-                                        competitor.most_helpful_review = review_text
+                                        competitor.most_helpful_review = DataCleaner.clean_html_text(review_text)
                 
                 except json.JSONDecodeError:
                     continue
@@ -607,15 +1001,17 @@ class ProductHuntScraper(BaseScraper):
             is_online = not product.get('isNoLongerOnline', False)
             
             return CompetitorData(
-                name=name,
-                description=description,
+                name=DataCleaner.clean_html_text(name),
+                description=DataCleaner.clean_html_text(description),
                 website=None,  # Will be resolved later if needed
                 estimated_users=estimated_users,
                 estimated_revenue=None,  # Will be estimated later
                 pricing_model=None,  # Will be enriched later
                 source=self.source_name,
                 source_url=source_url,
-                confidence_score=0.9 if is_online else 0.6  # Higher confidence for JSON data
+                confidence_score=0.9 if is_online else 0.6,  # Higher confidence for JSON data
+                comments=[],  # Initialize empty comments
+                sentiment_summary=None  # Will be set later
             )
             
         except Exception as e:

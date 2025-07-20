@@ -153,9 +153,13 @@ class ScrapingService:
                     all_competitors.extend(scraping_result.competitors or [])
                     all_feedback.extend(scraping_result.feedback or [])
         
-        # Clean and deduplicate data
-        cleaned_competitors = DataCleaner.clean_competitors(all_competitors)
-        cleaned_feedback = DataCleaner.clean_feedback(all_feedback)
+        # Clean and deduplicate data with sentiment analysis
+        data_cleaner = DataCleaner()
+        cleaned_competitors = data_cleaner.clean_competitors(all_competitors)
+        cleaned_feedback = data_cleaner.clean_feedback(all_feedback)
+        
+        # Generate sentiment summary
+        sentiment_summary = data_cleaner.get_sentiment_summary(cleaned_feedback)
         
         # Calculate processing time
         end_time = datetime.utcnow()
@@ -164,6 +168,7 @@ class ScrapingService:
         return {
             'competitors': cleaned_competitors,
             'feedback': cleaned_feedback,
+            'sentiment_summary': sentiment_summary,
             'metadata': {
                 'validation_id': validation_id,
                 'processing_time_seconds': processing_time,

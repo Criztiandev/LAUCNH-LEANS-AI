@@ -98,6 +98,53 @@ class DataCleaner:
             print(f"Error cleaning JSON file: {str(e)}")
             raise
 
+    
+    def get_sentiment_summary(self, feedback_list: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Generate sentiment summary from cleaned feedback data.
+        
+        Args:
+            feedback_list: List of cleaned feedback dictionaries
+            
+        Returns:
+            Dictionary with sentiment summary statistics
+        """
+        if not feedback_list:
+            return {
+                'total_count': 0,
+                'positive_count': 0,
+                'negative_count': 0,
+                'neutral_count': 0,
+                'positive_percentage': 0.0,
+                'negative_percentage': 0.0,
+                'neutral_percentage': 0.0,
+                'average_score': 0.0,
+                'average_confidence': 0.0
+            }
+        
+        positive_count = sum(1 for f in feedback_list if f.get('sentiment') == 'positive')
+        negative_count = sum(1 for f in feedback_list if f.get('sentiment') == 'negative')
+        neutral_count = sum(1 for f in feedback_list if f.get('sentiment') == 'neutral')
+        total_count = len(feedback_list)
+        
+        scores = [f.get('sentiment_score', 0.0) for f in feedback_list]
+        confidences = [f.get('confidence', 0.0) for f in feedback_list]
+        
+        average_score = sum(scores) / total_count if total_count > 0 else 0.0
+        average_confidence = sum(confidences) / total_count if total_count > 0 else 0.0
+        
+        return {
+            'total_count': total_count,
+            'positive_count': positive_count,
+            'negative_count': negative_count,
+            'neutral_count': neutral_count,
+            'positive_percentage': round((positive_count / total_count) * 100, 1) if total_count > 0 else 0.0,
+            'negative_percentage': round((negative_count / total_count) * 100, 1) if total_count > 0 else 0.0,
+            'neutral_percentage': round((neutral_count / total_count) * 100, 1) if total_count > 0 else 0.0,
+            'average_score': round(average_score, 3),
+            'average_confidence': round(average_confidence, 3)
+        }
+
 
 if __name__ == "__main__":
     # Example usage

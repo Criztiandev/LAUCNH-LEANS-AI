@@ -36,7 +36,7 @@ class ProductHuntScraper(BaseScraper):
         }
         self.session: Optional[aiohttp.ClientSession] = None
         self.sentiment_analyzer = SentimentAnalysisService()
-        self.max_comments_per_product = 5
+        self.max_comments_per_product = 10  # Increased to capture more pain points
     
     async def scrape(self, keywords: List[str], idea_text: str) -> ScrapingResult:
         """
@@ -50,6 +50,9 @@ class ProductHuntScraper(BaseScraper):
             ScrapingResult containing competitors and feedback data
         """
         try:
+            # Store keywords for relevance checking
+            self.search_keywords = [kw.lower() for kw in keywords]
+            
             competitors = []
             feedback = []
             
@@ -178,8 +181,10 @@ class ProductHuntScraper(BaseScraper):
                     for card in product_cards[:8]:  # Limit to 8 results per keyword
                         try:
                             competitor = self._extract_competitor_from_card(card, keyword)
-                            if competitor:
+                            if competitor and self._is_product_relevant(competitor):
                                 competitors.append(competitor)
+                            elif competitor:
+                                logger.debug(f"Skipping irrelevant product: {competitor.name}")
                         except Exception as e:
                             logger.debug(f"Failed to extract competitor from card: {str(e)}")
                             continue
@@ -435,14 +440,34 @@ class ProductHuntScraper(BaseScraper):
     
     async def _add_comments_to_competitor(self, competitor: CompetitorData, comments: List[Dict[str, Any]]) -> None:
         """
-        Add comments and sentiment summary to competitor data.
+        Add comments and sentiment summary to competitor data, prioritizing pain points.
         
         Args:
             competitor: CompetitorData object to enhance
             comments: List of comments with sentiment analysis
         """
-        # Always set comments field, even if empty
-        competitor.comments = comments if comments else []
+        # Categorize comments by sentiment - prioritize negative (pain points)
+        negative_comments = []
+        neutral_comments = []
+        positive_comments = []
+        
+        for comment in comments:
+            sentiment_label = comment.get('sentiment', {}).get('label', 'neutral')
+            if sentiment_label == 'negative':
+                negative_comments.append(comment)
+            elif sentiment_label == 'positive':
+                positive_comments.append(comment)
+            else:
+                neutral_comments.append(comment)
+        
+        # Sort negative comments by confidence (higher confidence pain points first)
+        negative_comments.sort(key=lambda x: x.get('sentiment', {}).get('confidence', 0), reverse=True)
+        
+        # Prioritize comments: negative first (pain points), then neutral, then positive
+        prioritized_comments = negative_comments + neutral_comments + positive_comments
+        
+        # Always set comments field with prioritized order
+        competitor.comments = prioritized_comments if prioritized_comments else []
         
         if not comments:
             # Set empty sentiment summary if no comments
@@ -455,11 +480,15 @@ class ProductHuntScraper(BaseScraper):
                 'negative_percentage': 0.0,
                 'neutral_percentage': 0.0,
                 'average_sentiment_score': 0.0,
-                'overall_sentiment': 'neutral'
+                'overall_sentiment': 'neutral',
+                'pain_points': [],
+                'pain_point_categories': {},
+                'positive_feedback': [],
+                'neutral_feedback': []
             }
             return
         
-        # Calculate sentiment summary
+        # Calculate sentiment summary with categorized feedback
         sentiment_labels = [comment['sentiment']['label'] for comment in comments]
         sentiment_scores = [comment['sentiment']['score'] for comment in comments]
         
@@ -468,6 +497,35 @@ class ProductHuntScraper(BaseScraper):
         neutral_count = sentiment_labels.count('neutral')
         
         average_sentiment_score = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
+        
+        # Extract key pain points from negative comments
+        pain_points = []
+        for comment in negative_comments[:5]:  # Top 5 pain points
+            pain_points.append({
+                'text': comment['text'][:200] + '...' if len(comment['text']) > 200 else comment['text'],
+                'author': comment.get('author', 'Anonymous'),
+                'confidence': comment.get('sentiment', {}).get('confidence', 0)
+            })
+        
+        # Categorize pain points by theme
+        pain_point_categories = self._categorize_pain_points(negative_comments)
+        
+        # Extract positive feedback highlights
+        positive_feedback = []
+        for comment in positive_comments[:2]:  # Top 2 positive highlights
+            positive_feedback.append({
+                'text': comment['text'][:200] + '...' if len(comment['text']) > 200 else comment['text'],
+                'author': comment.get('author', 'Anonymous'),
+                'confidence': comment.get('sentiment', {}).get('confidence', 0)
+            })
+        
+        # Extract neutral feedback
+        neutral_feedback = []
+        for comment in neutral_comments[:2]:  # Top 2 neutral comments
+            neutral_feedback.append({
+                'text': comment['text'][:200] + '...' if len(comment['text']) > 200 else comment['text'],
+                'author': comment.get('author', 'Anonymous')
+            })
         
         competitor.sentiment_summary = {
             'total_comments': len(comments),
@@ -478,10 +536,14 @@ class ProductHuntScraper(BaseScraper):
             'negative_percentage': round((negative_count / len(comments)) * 100, 1),
             'neutral_percentage': round((neutral_count / len(comments)) * 100, 1),
             'average_sentiment_score': round(average_sentiment_score, 3),
-            'overall_sentiment': self._determine_overall_sentiment(average_sentiment_score)
+            'overall_sentiment': self._determine_overall_sentiment(average_sentiment_score),
+            'pain_points': pain_points,  # Prioritized pain points
+            'pain_point_categories': pain_point_categories,  # Categorized pain points
+            'positive_feedback': positive_feedback,
+            'neutral_feedback': neutral_feedback
         }
         
-        logger.info(f"Added {len(comments)} comments and sentiment summary to {competitor.name}")
+        logger.info(f"Added {len(comments)} comments to {competitor.name} - Pain points: {len(pain_points)}, Positive: {len(positive_feedback)}")
     
     def _determine_overall_sentiment(self, average_score: float) -> str:
         """
@@ -499,6 +561,53 @@ class ProductHuntScraper(BaseScraper):
             return 'negative'
         else:
             return 'neutral'
+    
+    def _categorize_pain_points(self, negative_comments: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """
+        Categorize pain points from negative comments into common themes.
+        
+        Args:
+            negative_comments: List of negative comments
+            
+        Returns:
+            Dictionary of categorized pain points
+        """
+        categories = {
+            'usability': [],
+            'performance': [],
+            'features': [],
+            'pricing': [],
+            'support': [],
+            'bugs': [],
+            'other': []
+        }
+        
+        # Keywords for categorization
+        category_keywords = {
+            'usability': ['confusing', 'difficult', 'hard to use', 'complicated', 'interface', 'ui', 'ux', 'navigation'],
+            'performance': ['slow', 'crash', 'freeze', 'lag', 'loading', 'speed', 'performance', 'battery'],
+            'features': ['missing', 'lack', 'need', 'want', 'feature', 'functionality', 'option'],
+            'pricing': ['expensive', 'price', 'cost', 'money', 'subscription', 'payment', 'billing'],
+            'support': ['support', 'help', 'customer service', 'response', 'contact'],
+            'bugs': ['bug', 'error', 'broken', 'issue', 'problem', 'glitch', 'not working']
+        }
+        
+        for comment in negative_comments:
+            text = comment.get('text', '').lower()
+            categorized = False
+            
+            for category, keywords in category_keywords.items():
+                if any(keyword in text for keyword in keywords):
+                    categories[category].append(comment.get('text', '')[:150])
+                    categorized = True
+                    break
+            
+            if not categorized:
+                categories['other'].append(comment.get('text', '')[:150])
+        
+        # Remove empty categories
+        return {k: v for k, v in categories.items() if v}
+    
     
     def _extract_comments_from_html(self, soup: BeautifulSoup) -> List[Dict[str, Any]]:
         """

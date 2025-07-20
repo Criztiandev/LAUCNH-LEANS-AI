@@ -30,7 +30,7 @@ class GooglePlayStoreScraper(BaseScraper):
         self.supported_languages = ['en']  # Supported languages for search
         self.supported_countries = ['us']  # Supported countries for search
         self.sentiment_analyzer = SentimentAnalysisService()
-        self.max_comments_per_app = 5
+        self.max_comments_per_app = 10  # Increased to capture more pain points
     
     def validate_config(self) -> bool:
         """
@@ -75,6 +75,9 @@ class GooglePlayStoreScraper(BaseScraper):
             ScrapingResult containing competitor app data and reviews
         """
         try:
+            # Store keywords for relevance checking
+            self.search_keywords = [kw.lower() for kw in keywords]
+            
             competitors = []
             feedback = []
             metadata = {
@@ -250,32 +253,71 @@ class GooglePlayStoreScraper(BaseScraper):
     
     async def _get_app_reviews(self, app_id: str) -> List[Dict[str, Any]]:
         """
-        Get app reviews using google-play-scraper library.
+        Get app reviews using google-play-scraper library, prioritizing negative reviews for pain points.
         
         Args:
             app_id: Google Play Store app ID
             
         Returns:
-            List of review dictionaries
+            List of review dictionaries prioritized by negative sentiment
         """
+        all_reviews = []
+        
         try:
             loop = asyncio.get_event_loop()
-            review_results = await loop.run_in_executor(
+            
+            # Get most relevant reviews first
+            relevant_results = await loop.run_in_executor(
                 None,
                 lambda: reviews(
                     app_id,
                     lang=self.supported_languages[0],
                     country=self.supported_countries[0],
                     sort=Sort.MOST_RELEVANT,
-                    count=self.max_reviews_per_app
+                    count=self.max_reviews_per_app // 2
                 )
             )
             
-            # Extract reviews from the result tuple
-            review_list = review_results[0] if review_results and len(review_results) > 0 else []
+            if relevant_results and len(relevant_results) > 0:
+                all_reviews.extend(relevant_results[0])
             
-            logger.info(f"Found {len(review_list)} reviews for app: {app_id}")
-            return review_list
+            # Also get newest reviews to catch recent pain points
+            await asyncio.sleep(0.5)  # Rate limiting
+            newest_results = await loop.run_in_executor(
+                None,
+                lambda: reviews(
+                    app_id,
+                    lang=self.supported_languages[0],
+                    country=self.supported_countries[0],
+                    sort=Sort.NEWEST,
+                    count=self.max_reviews_per_app // 2
+                )
+            )
+            
+            if newest_results and len(newest_results) > 0:
+                all_reviews.extend(newest_results[0])
+            
+            # Remove duplicates based on review content
+            unique_reviews = []
+            seen_content = set()
+            
+            for review in all_reviews:
+                content_key = review.get('content', '')[:50].lower().strip()
+                if content_key not in seen_content and len(content_key) > 10:
+                    unique_reviews.append(review)
+                    seen_content.add(content_key)
+            
+            # Sort reviews to prioritize negative ones (pain points)
+            # Lower scores (1-2 stars) come first, then higher scores
+            sorted_reviews = sorted(unique_reviews, key=lambda x: (
+                x.get('score', 3),  # Lower scores first
+                -x.get('thumbsUpCount', 0)  # Then by helpfulness
+            ))
+            
+            final_reviews = sorted_reviews[:self.max_reviews_per_app]
+            
+            logger.info(f"Found {len(final_reviews)} prioritized reviews for app: {app_id}")
+            return final_reviews
             
         except exceptions.NotFoundError:
             logger.warning(f"No reviews found for app: {app_id}")
@@ -286,18 +328,23 @@ class GooglePlayStoreScraper(BaseScraper):
     
     async def _extract_competitors_from_search(self, search_results: List[Dict[str, Any]]) -> List[CompetitorData]:
         """
-        Extract competitor data from search results.
+        Extract competitor data from search results with relevance filtering.
         
         Args:
             search_results: List of app data from search
             
         Returns:
-            List of CompetitorData objects
+            List of relevant CompetitorData objects
         """
         competitors = []
         
         for app_data in search_results:
             try:
+                # Check relevance before processing
+                if not self._is_app_relevant(app_data):
+                    logger.debug(f"Skipping irrelevant app: {app_data.get('title', 'Unknown')}")
+                    continue
+                
                 # Create competitor data primarily from search results to avoid too many API calls
                 # Only get detailed info for top apps to respect rate limits
                 app_details = None
@@ -307,6 +354,11 @@ class GooglePlayStoreScraper(BaseScraper):
                         await asyncio.sleep(0.5)  # Rate limiting delay
                     except Exception as e:
                         logger.debug(f"Failed to get app details for {app_data['appId']}: {str(e)}")
+                
+                # Double-check relevance with detailed description if available
+                if app_details and not self._is_app_relevant_detailed(app_data, app_details):
+                    logger.debug(f"Skipping app after detailed check: {app_data.get('title', 'Unknown')}")
+                    continue
                 
                 # Create competitor data using available information
                 raw_description = app_details.get('description') if app_details else app_data.get('summary')
@@ -444,14 +496,40 @@ class GooglePlayStoreScraper(BaseScraper):
     
     async def _add_comments_to_competitor(self, competitor: CompetitorData, comments: List[Dict[str, Any]]) -> None:
         """
-        Add comments and sentiment summary to competitor data.
+        Add comments and sentiment summary to competitor data, prioritizing pain points.
         
         Args:
             competitor: CompetitorData object to enhance
             comments: List of comments with sentiment analysis
         """
-        # Always set comments field, even if empty
-        competitor.comments = comments if comments else []
+        # Categorize comments by sentiment - prioritize negative (pain points)
+        negative_comments = []
+        neutral_comments = []
+        positive_comments = []
+        
+        for comment in comments:
+            sentiment_label = comment.get('sentiment', {}).get('label', 'neutral')
+            # Also consider low ratings as negative sentiment indicators
+            rating = comment.get('rating', 3)
+            
+            if sentiment_label == 'negative' or (rating and rating <= 2):
+                negative_comments.append(comment)
+            elif sentiment_label == 'positive' or (rating and rating >= 4):
+                positive_comments.append(comment)
+            else:
+                neutral_comments.append(comment)
+        
+        # Sort negative comments by confidence and rating (lower ratings = higher priority pain points)
+        negative_comments.sort(key=lambda x: (
+            x.get('sentiment', {}).get('confidence', 0),
+            -(x.get('rating', 3))  # Lower rating = higher priority
+        ), reverse=True)
+        
+        # Prioritize comments: negative first (pain points), then neutral, then positive
+        prioritized_comments = negative_comments + neutral_comments + positive_comments
+        
+        # Always set comments field with prioritized order
+        competitor.comments = prioritized_comments if prioritized_comments else []
         
         if not comments:
             # Set empty sentiment summary if no comments
@@ -464,11 +542,15 @@ class GooglePlayStoreScraper(BaseScraper):
                 'negative_percentage': 0.0,
                 'neutral_percentage': 0.0,
                 'average_sentiment_score': 0.0,
-                'overall_sentiment': 'neutral'
+                'overall_sentiment': 'neutral',
+                'pain_points': [],
+                'pain_point_categories': {},
+                'positive_feedback': [],
+                'neutral_feedback': []
             }
             return
         
-        # Calculate sentiment summary
+        # Calculate sentiment summary with categorized feedback
         sentiment_labels = [comment['sentiment']['label'] for comment in comments]
         sentiment_scores = [comment['sentiment']['score'] for comment in comments]
         
@@ -477,6 +559,41 @@ class GooglePlayStoreScraper(BaseScraper):
         neutral_count = sentiment_labels.count('neutral')
         
         average_sentiment_score = sum(sentiment_scores) / len(sentiment_scores) if sentiment_scores else 0
+        
+        # Extract key pain points from negative comments
+        pain_points = []
+        for comment in negative_comments[:5]:  # Top 5 pain points
+            pain_points.append({
+                'text': comment['text'][:200] + '...' if len(comment['text']) > 200 else comment['text'],
+                'author': comment.get('author', 'Anonymous'),
+                'rating': comment.get('rating'),
+                'confidence': comment.get('sentiment', {}).get('confidence', 0),
+                'thumbs_up': comment.get('thumbs_up', 0)
+            })
+        
+        # Categorize pain points by theme
+        pain_point_categories = self._categorize_pain_points(negative_comments)
+        
+        # Extract positive feedback highlights
+        positive_feedback = []
+        for comment in positive_comments[:2]:  # Top 2 positive highlights
+            positive_feedback.append({
+                'text': comment['text'][:200] + '...' if len(comment['text']) > 200 else comment['text'],
+                'author': comment.get('author', 'Anonymous'),
+                'rating': comment.get('rating'),
+                'confidence': comment.get('sentiment', {}).get('confidence', 0),
+                'thumbs_up': comment.get('thumbs_up', 0)
+            })
+        
+        # Extract neutral feedback
+        neutral_feedback = []
+        for comment in neutral_comments[:2]:  # Top 2 neutral comments
+            neutral_feedback.append({
+                'text': comment['text'][:200] + '...' if len(comment['text']) > 200 else comment['text'],
+                'author': comment.get('author', 'Anonymous'),
+                'rating': comment.get('rating'),
+                'thumbs_up': comment.get('thumbs_up', 0)
+            })
         
         competitor.sentiment_summary = {
             'total_comments': len(comments),
@@ -487,10 +604,14 @@ class GooglePlayStoreScraper(BaseScraper):
             'negative_percentage': round((negative_count / len(comments)) * 100, 1),
             'neutral_percentage': round((neutral_count / len(comments)) * 100, 1),
             'average_sentiment_score': round(average_sentiment_score, 3),
-            'overall_sentiment': self._determine_overall_sentiment(average_sentiment_score)
+            'overall_sentiment': self._determine_overall_sentiment(average_sentiment_score),
+            'pain_points': pain_points,  # Prioritized pain points
+            'pain_point_categories': pain_point_categories,  # Categorized pain points
+            'positive_feedback': positive_feedback,
+            'neutral_feedback': neutral_feedback
         }
         
-        logger.info(f"Added {len(comments)} reviews and sentiment summary to {competitor.name}")
+        logger.info(f"Added {len(comments)} reviews to {competitor.name} - Pain points: {len(pain_points)}, Positive: {len(positive_feedback)}")
     
     def _determine_overall_sentiment(self, average_score: float) -> str:
         """
@@ -509,39 +630,107 @@ class GooglePlayStoreScraper(BaseScraper):
         else:
             return 'neutral'
     
+    def _categorize_pain_points(self, negative_comments: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+        """
+        Categorize pain points from negative comments into common themes.
+        
+        Args:
+            negative_comments: List of negative comments
+            
+        Returns:
+            Dictionary of categorized pain points
+        """
+        categories = {
+            'usability': [],
+            'performance': [],
+            'features': [],
+            'pricing': [],
+            'support': [],
+            'bugs': [],
+            'other': []
+        }
+        
+        # Keywords for categorization
+        category_keywords = {
+            'usability': ['confusing', 'difficult', 'hard to use', 'complicated', 'interface', 'ui', 'ux', 'navigation'],
+            'performance': ['slow', 'crash', 'freeze', 'lag', 'loading', 'speed', 'performance', 'battery'],
+            'features': ['missing', 'lack', 'need', 'want', 'feature', 'functionality', 'option'],
+            'pricing': ['expensive', 'price', 'cost', 'money', 'subscription', 'payment', 'billing'],
+            'support': ['support', 'help', 'customer service', 'response', 'contact'],
+            'bugs': ['bug', 'error', 'broken', 'issue', 'problem', 'glitch', 'not working']
+        }
+        
+        for comment in negative_comments:
+            text = comment.get('text', '').lower()
+            categorized = False
+            
+            for category, keywords in category_keywords.items():
+                if any(keyword in text for keyword in keywords):
+                    categories[category].append(comment.get('text', '')[:150])
+                    categorized = True
+                    break
+            
+            if not categorized:
+                categories['other'].append(comment.get('text', '')[:150])
+        
+        # Remove empty categories
+        return {k: v for k, v in categories.items() if v}
+    
+    
     def _generate_search_queries(self, keywords: List[str], idea_text: str) -> List[str]:
         """
-        Generate search queries for Google Play Store.
+        Generate focused search queries for Google Play Store.
         
         Args:
             keywords: List of keywords from the idea
             idea_text: Original idea text
             
         Returns:
-            List of search query strings
+            List of focused search query strings
         """
         queries = []
         
-        # Use top keywords directly
-        for keyword in keywords[:3]:
-            if len(keyword) > 2:  # Skip very short keywords
-                queries.append(keyword)
+        # Combine keywords to create more specific searches
+        if len(keywords) >= 2:
+            # Primary search: combine main keywords
+            primary_query = " ".join(keywords[:2])
+            queries.append(primary_query)
+            
+            # Secondary searches: each keyword with "app"
+            for keyword in keywords[:2]:
+                if len(keyword) > 2:
+                    queries.append(f"{keyword} app")
+        else:
+            # Single keyword searches
+            for keyword in keywords[:2]:
+                if len(keyword) > 2:
+                    queries.append(keyword)
+                    queries.append(f"{keyword} app")
         
-        # Add category-based searches
-        categories = ['productivity', 'business', 'tools', 'lifestyle', 'health', 'fitness']
-        for keyword in keywords[:2]:
-            for category in categories[:2]:
-                if keyword.lower() != category:
-                    queries.append(f"{keyword} {category}")
+        # Add category-specific searches only if relevant
+        main_keyword = keywords[0].lower() if keywords else ""
         
-        # Add app-specific searches
-        for keyword in keywords[:2]:
-            queries.append(f"{keyword} app")
-            queries.append(f"{keyword} mobile")
+        # Define category mappings for better targeting
+        category_mappings = {
+            'fitness': ['fitness', 'workout', 'exercise', 'health'],
+            'productivity': ['productivity', 'task', 'todo', 'work'],
+            'business': ['business', 'finance', 'accounting', 'crm'],
+            'education': ['education', 'learning', 'study', 'school'],
+            'entertainment': ['game', 'music', 'video', 'entertainment'],
+            'social': ['social', 'chat', 'messaging', 'dating'],
+            'shopping': ['shopping', 'ecommerce', 'store', 'marketplace']
+        }
+        
+        # Only add category searches if the main keyword matches a category
+        for category, related_terms in category_mappings.items():
+            if any(term in main_keyword for term in related_terms):
+                if len(keywords) >= 2:
+                    queries.append(f"{keywords[1]} {category}")
+                break
         
         # Remove duplicates and limit
         unique_queries = list(dict.fromkeys(queries))  # Preserves order
-        return unique_queries[:6]  # Limit to 6 queries
+        return unique_queries[:4]  # Limit to 4 focused queries
     
     def _format_installs(self, installs: Optional[str]) -> Optional[str]:
         """
@@ -634,3 +823,127 @@ class GooglePlayStoreScraper(BaseScraper):
                 unique_feedback.append(item)
         
         return unique_feedback
+    
+    def _is_app_relevant(self, app_data: Dict[str, Any]) -> bool:
+        """
+        Check if an app is relevant to the search query based on basic criteria.
+        
+        Args:
+            app_data: App data from search results
+            
+        Returns:
+            True if app appears relevant, False otherwise
+        """
+        app_name = app_data.get('title', '').lower()
+        app_summary = app_data.get('summary', '').lower()
+        developer = app_data.get('developer', '').lower()
+        
+        # Skip generic system apps and major platforms
+        generic_apps = [
+            'gmail', 'google messages', 'instagram', 'snapchat', 'whatsapp', 
+            'messenger', 'telegram', 'discord', 'tiktok', 'youtube', 'netflix',
+            'google maps', 'google photos', 'contacts', 'phone', 'chrome',
+            'facebook', 'twitter', 'linkedin', 'pinterest'
+        ]
+        
+        # Skip if it's a generic app unless it's specifically relevant
+        for generic in generic_apps:
+            if generic in app_name and not self._has_relevant_keywords(app_name + ' ' + app_summary):
+                return False
+        
+        # Skip Google/Meta system apps unless specifically relevant
+        system_developers = ['google llc', 'meta platforms', 'facebook']
+        if any(dev in developer for dev in system_developers):
+            if not self._has_relevant_keywords(app_name + ' ' + app_summary):
+                return False
+        
+        return True
+    
+    def _is_app_relevant_detailed(self, app_data: Dict[str, Any], app_details: Dict[str, Any]) -> bool:
+        """
+        Perform detailed relevance check using full app description.
+        
+        Args:
+            app_data: Basic app data from search
+            app_details: Detailed app data
+            
+        Returns:
+            True if app is relevant, False otherwise
+        """
+        full_description = app_details.get('description', '').lower()
+        app_name = app_data.get('title', '').lower()
+        
+        # Combine all text for analysis
+        full_text = f"{app_name} {full_description}"
+        
+        return self._has_relevant_keywords(full_text)
+    
+    def _has_relevant_keywords(self, text: str) -> bool:
+        """
+        Check if text contains keywords relevant to the search query.
+        
+        Args:
+            text: Text to analyze
+            
+        Returns:
+            True if text contains relevant keywords
+        """
+        if not hasattr(self, 'search_keywords') or not self.search_keywords:
+            return True  # If no keywords set, allow all
+        
+        text_lower = text.lower()
+        
+        # Check for direct keyword matches
+        direct_matches = sum(1 for keyword in self.search_keywords if keyword in text_lower)
+        if direct_matches > 0:
+            return True
+        
+        # Define category-specific related terms
+        category_terms = {
+            'fitness': [
+                'fitness', 'workout', 'exercise', 'gym', 'health', 'training',
+                'muscle', 'cardio', 'yoga', 'running', 'weight', 'diet',
+                'nutrition', 'calories', 'steps', 'activity', 'sport', 'bodybuilding',
+                'strength', 'endurance', 'pilates', 'crossfit', 'marathon', 'cycling'
+            ],
+            'productivity': [
+                'productivity', 'task', 'todo', 'project', 'organize', 'planning',
+                'schedule', 'calendar', 'note', 'reminder', 'workflow', 'efficiency',
+                'time management', 'gtd', 'kanban', 'scrum', 'agile'
+            ],
+            'business': [
+                'business', 'finance', 'accounting', 'invoice', 'sales', 'crm',
+                'marketing', 'analytics', 'revenue', 'customer', 'lead', 'profit',
+                'enterprise', 'commerce', 'trading', 'investment', 'startup'
+            ],
+            'education': [
+                'education', 'learning', 'study', 'school', 'course', 'lesson',
+                'tutorial', 'training', 'skill', 'knowledge', 'academic', 'student'
+            ],
+            'social': [
+                'social', 'chat', 'messaging', 'communication', 'network', 'community',
+                'friends', 'dating', 'relationship', 'connect', 'share'
+            ],
+            'entertainment': [
+                'game', 'gaming', 'entertainment', 'fun', 'play', 'music', 'video',
+                'movie', 'streaming', 'media', 'content'
+            ]
+        }
+        
+        # Check if any search keyword matches a category and if text contains related terms
+        for search_keyword in self.search_keywords:
+            for category, terms in category_terms.items():
+                if search_keyword in terms:
+                    # If search keyword is in this category, check for related terms
+                    related_matches = sum(1 for term in terms if term in text_lower)
+                    if related_matches > 0:
+                        return True
+        
+        # Check for app-specific terms if "app" is in search keywords
+        if 'app' in self.search_keywords:
+            app_terms = ['application', 'mobile', 'android', 'smartphone', 'device']
+            app_matches = sum(1 for term in app_terms if term in text_lower)
+            if app_matches > 0:
+                return True
+        
+        return False

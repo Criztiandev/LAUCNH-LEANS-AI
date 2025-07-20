@@ -339,13 +339,13 @@ async def comprehensive_sentiment_demo(query: str):
     # Clean and analyze data
     print("🧹 Cleaning and analyzing scraped data...")
     
-    # Clean competitors
-    cleaned_competitors = data_cleaner.clean_competitors(all_competitors)
+    # Clean competitors data recursively
+    cleaned_competitors = [data_cleaner.clean_data_recursively(comp.__dict__) for comp in all_competitors]
     
-    # Clean feedback with sentiment analysis
-    cleaned_feedback = data_cleaner.clean_feedback(all_feedback)
+    # Clean feedback data recursively
+    cleaned_feedback = [data_cleaner.clean_data_recursively(fb.__dict__) for fb in all_feedback]
     
-    # Generate sentiment summary
+    # Generate sentiment summary from feedback
     sentiment_summary = data_cleaner.get_sentiment_summary(cleaned_feedback)
     
     print(f"✅ Data cleaning completed")
@@ -390,12 +390,12 @@ async def comprehensive_sentiment_demo(query: str):
     if cleaned_feedback:
         print("💭 SENTIMENT ANALYSIS RESULTS:")
         print("-" * 40)
-        print(f"📊 Total Feedback Analyzed: {sentiment_summary['total_count']}")
-        print(f"😊 Positive: {sentiment_summary['positive_count']} ({sentiment_summary['positive_percentage']:.1f}%)")
-        print(f"😐 Neutral: {sentiment_summary['neutral_count']} ({sentiment_summary['neutral_percentage']:.1f}%)")
-        print(f"😞 Negative: {sentiment_summary['negative_count']} ({sentiment_summary['negative_percentage']:.1f}%)")
-        print(f"📈 Average Score: {sentiment_summary['average_score']:.3f} (Range: -1 to 1)")
-        print(f"🎯 Average Confidence: {sentiment_summary['average_confidence']:.3f} (Range: 0 to 1)")
+        print(f"📊 Total Feedback Analyzed: {sentiment_summary.get('total_count', 0)}")
+        print(f"😊 Positive: {sentiment_summary.get('positive_count', 0)} ({sentiment_summary.get('positive_percentage', 0.0):.1f}%)")
+        print(f"😐 Neutral: {sentiment_summary.get('neutral_count', 0)} ({sentiment_summary.get('neutral_percentage', 0.0):.1f}%)")
+        print(f"😞 Negative: {sentiment_summary.get('negative_count', 0)} ({sentiment_summary.get('negative_percentage', 0.0):.1f}%)")
+        print(f"📈 Average Score: {sentiment_summary.get('average_score', 0.0):.3f} (Range: -1 to 1)")
+        print(f"🎯 Average Confidence: {sentiment_summary.get('average_confidence', 0.0):.3f} (Range: 0 to 1)")
         print()
         
         # Show sample feedback by sentiment
@@ -458,14 +458,14 @@ async def comprehensive_sentiment_demo(query: str):
     
     if cleaned_feedback:
         # Sentiment insights
-        if sentiment_summary['positive_percentage'] > 60:
+        if sentiment_summary.get('positive_percentage', 0.0) > 60:
             print("✅ Market shows generally positive sentiment")
-        elif sentiment_summary['negative_percentage'] > 40:
+        elif sentiment_summary.get('negative_percentage', 0.0) > 40:
             print("⚠️ Market shows concerning negative sentiment")
         else:
             print("📊 Market sentiment is mixed - opportunity for differentiation")
         
-        if sentiment_summary['average_confidence'] > 0.7:
+        if sentiment_summary.get('average_confidence', 0.0) > 0.7:
             print("🎯 High confidence in sentiment analysis results")
         else:
             print("⚠️ Moderate confidence in sentiment analysis - results may vary")
@@ -506,53 +506,52 @@ async def comprehensive_sentiment_demo(query: str):
         'feedback': cleaned_feedback
     }
     
-    json_file = output_dir / f'comprehensive_analysis_{query.replace(" ", "_")}_{timestamp}.json'
-    with open(json_file, 'w', encoding='utf-8') as f:
+    # Save main comprehensive analysis JSON
+    main_json_file = output_dir / f'market_analysis_{query.replace(" ", "_")}_{timestamp}.json'
+    with open(main_json_file, 'w', encoding='utf-8') as f:
         json.dump(comprehensive_data, f, indent=2, default=str)
     
-    # Save competitors CSV
-    if cleaned_competitors:
-        csv_file = csv_dir / f'competitors_{query.replace(" ", "_")}_{timestamp}.csv'
-        with open(csv_file, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = [
-                'name', 'description', 'website', 'estimated_users', 'estimated_revenue',
-                'pricing_model', 'confidence_score', 'source', 'source_url'
-            ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for comp in cleaned_competitors:
-                writer.writerow({
-                    'name': comp['name'],
-                    'description': comp['description'] or 'N/A',
-                    'website': comp['website'] or 'N/A',
-                    'estimated_users': comp['estimated_users'] or 'N/A',
-                    'estimated_revenue': comp['estimated_revenue'] or 'N/A',
-                    'pricing_model': comp['pricing_model'] or 'N/A',
-                    'confidence_score': comp['confidence_score'],
-                    'source': comp['source'],
-                    'source_url': comp['source_url'] or 'N/A'
-                })
-    
-    # Save feedback with sentiment CSV
-    if cleaned_feedback:
-        feedback_csv = csv_dir / f'feedback_sentiment_{query.replace(" ", "_")}_{timestamp}.csv'
-        with open(feedback_csv, 'w', newline='', encoding='utf-8') as f:
-            fieldnames = [
-                'text', 'sentiment', 'sentiment_score', 'confidence', 'source',
-                'textblob_polarity', 'vader_compound'
-            ]
-            writer = csv.DictWriter(f, fieldnames=fieldnames)
-            writer.writeheader()
-            for fb in cleaned_feedback:
-                writer.writerow({
-                    'text': fb['text'],
-                    'sentiment': fb['sentiment'],
-                    'sentiment_score': fb['sentiment_score'],
-                    'confidence': fb['confidence'],
-                    'source': fb['source'],
-                    'textblob_polarity': fb['sentiment_details']['textblob_polarity'],
-                    'vader_compound': fb['sentiment_details']['vader_compound']
-                })
+    # Save main competitors and pain points CSV (single comprehensive file)
+    main_csv_file = csv_dir / f'competitors_analysis_{query.replace(" ", "_")}_{timestamp}.csv'
+    with open(main_csv_file, 'w', newline='', encoding='utf-8') as f:
+        fieldnames = [
+            'name', 'description', 'website', 'estimated_users', 'estimated_revenue',
+            'pricing_model', 'source', 'confidence_score', 'pain_points_count', 
+            'top_pain_point', 'pain_point_categories', 'positive_feedback_count',
+            'average_rating', 'review_count'
+        ]
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        for comp in cleaned_competitors:
+            sentiment_summary = comp.get('sentiment_summary', {})
+            pain_points = sentiment_summary.get('pain_points', [])
+            pain_point_categories = sentiment_summary.get('pain_point_categories', {})
+            positive_feedback = sentiment_summary.get('positive_feedback', [])
+            
+            # Get top pain point text
+            top_pain_point = pain_points[0].get('text', '') if pain_points else ''
+            if len(top_pain_point) > 150:
+                top_pain_point = top_pain_point[:150] + '...'
+            
+            # Format pain point categories
+            categories_str = ', '.join([f"{k}({len(v)})" for k, v in pain_point_categories.items()])
+            
+            writer.writerow({
+                'name': comp.get('name', ''),
+                'description': (comp.get('description', '') or 'N/A')[:200] + '...' if len(comp.get('description', '') or '') > 200 else (comp.get('description', '') or 'N/A'),
+                'website': comp.get('website', '') or 'N/A',
+                'estimated_users': comp.get('estimated_users', '') or 'N/A',
+                'estimated_revenue': comp.get('estimated_revenue', '') or 'N/A',
+                'pricing_model': comp.get('pricing_model', '') or 'N/A',
+                'source': comp.get('source', ''),
+                'confidence_score': comp.get('confidence_score', ''),
+                'pain_points_count': len(pain_points),
+                'top_pain_point': top_pain_point,
+                'pain_point_categories': categories_str,
+                'positive_feedback_count': len(positive_feedback),
+                'average_rating': comp.get('average_rating', '') or 'N/A',
+                'review_count': comp.get('review_count', '') or 'N/A'
+            })
     
     # Generate comprehensive TXT summary
     txt_summary = generate_txt_summary(query, comprehensive_data, cleaned_competitors, cleaned_feedback, sentiment_summary, scraping_results)
@@ -560,11 +559,8 @@ async def comprehensive_sentiment_demo(query: str):
     with open(txt_file, 'w', encoding='utf-8') as f:
         f.write(txt_summary)
     
-    print(f"📊 Comprehensive Analysis: {json_file}")
-    if cleaned_competitors:
-        print(f"🏢 Competitors CSV: {csv_file}")
-    if cleaned_feedback:
-        print(f"💭 Sentiment Analysis CSV: {feedback_csv}")
+    print(f"📊 Market Analysis JSON: {main_json_file}")
+    print(f"🏢 Competitors & Pain Points CSV: {main_csv_file}")
     print(f"📝 Summary Report: {txt_file}")
     
     print()
@@ -616,22 +612,22 @@ SCRAPER PERFORMANCE:
     if feedback:
         summary += f"""
 SENTIMENT ANALYSIS OVERVIEW:
-😊 Positive Sentiment: {sentiment_summary['positive_count']} ({sentiment_summary['positive_percentage']:.1f}%)
-😐 Neutral Sentiment: {sentiment_summary['neutral_count']} ({sentiment_summary['neutral_percentage']:.1f}%)
-😞 Negative Sentiment: {sentiment_summary['negative_count']} ({sentiment_summary['negative_percentage']:.1f}%)
-📈 Average Sentiment Score: {sentiment_summary['average_score']:.3f} (Range: -1 to 1)
-🎯 Average Confidence: {sentiment_summary['average_confidence']:.3f} (Range: 0 to 1)
+😊 Positive Sentiment: {sentiment_summary.get('positive_count', 0)} ({sentiment_summary.get('positive_percentage', 0.0):.1f}%)
+😐 Neutral Sentiment: {sentiment_summary.get('neutral_count', 0)} ({sentiment_summary.get('neutral_percentage', 0.0):.1f}%)
+😞 Negative Sentiment: {sentiment_summary.get('negative_count', 0)} ({sentiment_summary.get('negative_percentage', 0.0):.1f}%)
+📈 Average Sentiment Score: {sentiment_summary.get('average_score', 0.0):.3f} (Range: -1 to 1)
+🎯 Average Confidence: {sentiment_summary.get('average_confidence', 0.0):.3f} (Range: 0 to 1)
 
 MARKET SENTIMENT INSIGHT:
 """
-        if sentiment_summary['positive_percentage'] > 50:
+        if sentiment_summary.get('positive_percentage', 0.0) > 50:
             summary += "✅ POSITIVE MARKET SENTIMENT - Good product-market fit indicators\n"
-        elif sentiment_summary['negative_percentage'] > 40:
+        elif sentiment_summary.get('negative_percentage', 0.0) > 40:
             summary += "⚠️ CONCERNING NEGATIVE SENTIMENT - Key issues need addressing\n"
         else:
             summary += "📊 MIXED SENTIMENT - Opportunity for improvement and differentiation\n"
         
-        if sentiment_summary['average_confidence'] > 0.7:
+        if sentiment_summary.get('average_confidence', 0.0) > 0.7:
             summary += "🎯 HIGH CONFIDENCE in sentiment analysis - Reliable insights\n"
         else:
             summary += "⚠️ MODERATE CONFIDENCE - Consider additional data sources\n"
@@ -748,11 +744,11 @@ KEY FINDINGS:
             summary += f"• {paid_apps} competitors use paid model - premium market exists\n"
     
     if feedback:
-        if sentiment_summary['negative_percentage'] > 30:
+        if sentiment_summary.get('negative_percentage', 0.0) > 30:
             summary += "• High negative sentiment indicates market dissatisfaction - opportunity for improvement\n"
-        if sentiment_summary['positive_percentage'] > 60:
+        if sentiment_summary.get('positive_percentage', 0.0) > 60:
             summary += "• Strong positive sentiment shows market validation for this category\n"
-        if sentiment_summary['average_confidence'] > 0.6:
+        if sentiment_summary.get('average_confidence', 0.0) > 0.6:
             summary += "• High confidence in sentiment analysis - reliable market feedback\n"
     
     summary += f"""
@@ -769,9 +765,9 @@ RECOMMENDATIONS:
             summary += "• Moderate competition - identify gaps in existing solutions\n"
     
     if feedback:
-        if sentiment_summary['negative_percentage'] > 40:
+        if sentiment_summary.get('negative_percentage', 0.0) > 40:
             summary += "• Address common pain points identified in negative feedback\n"
-        if sentiment_summary['positive_percentage'] > 50:
+        if sentiment_summary.get('positive_percentage', 0.0) > 50:
             summary += "• Build on positive aspects that users appreciate\n"
         summary += "• Monitor sentiment trends over time for market validation\n"
     

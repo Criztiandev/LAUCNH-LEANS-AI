@@ -22,23 +22,44 @@ export const publicProcedure = t.procedure
 const enforceUserIsAuthed = t.middleware(async ({ ctx, next }) => {
   const authHeader = ctx.headers.get('authorization')
   
-  if (!authHeader) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    throw new TRPCError({ 
+      code: 'UNAUTHORIZED',
+      message: 'Missing or invalid authorization header'
+    })
   }
 
-  const token = authHeader.replace('Bearer ', '')
-  const { data: { user }, error } = await ctx.supabase.auth.getUser(token)
-
-  if (error || !user) {
-    throw new TRPCError({ code: 'UNAUTHORIZED' })
+  const token = authHeader.replace('Bearer ', '').trim()
+  
+  if (!token) {
+    throw new TRPCError({ 
+      code: 'UNAUTHORIZED',
+      message: 'Missing access token'
+    })
   }
 
-  return next({
-    ctx: {
-      ...ctx,
-      user,
-    },
-  })
+  try {
+    const { data: { user }, error } = await ctx.supabase.auth.getUser(token)
+
+    if (error || !user) {
+      throw new TRPCError({ 
+        code: 'UNAUTHORIZED',
+        message: 'Invalid or expired token'
+      })
+    }
+
+    return next({
+      ctx: {
+        ...ctx,
+        user,
+      },
+    })
+  } catch {
+    throw new TRPCError({ 
+      code: 'UNAUTHORIZED',
+      message: 'Authentication failed'
+    })
+  }
 })
 
 export const protectedProcedure = t.procedure.use(enforceUserIsAuthed)

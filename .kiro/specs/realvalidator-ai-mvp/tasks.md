@@ -38,7 +38,15 @@
   - Test protected route behavior with authenticated and unauthenticated users
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [-] 3. Setup tRPC infrastructure and basic API
+- [x] 3. Setup tRPC infrastructure and basic API
+
+
+
+
+
+
+
+
 
 
   - Configure tRPC server with Supabase database connection
@@ -48,7 +56,30 @@
   - Write unit tests for tRPC authentication middleware
   - _Requirements: 1.3, 8.2_
 
-- [ ] 4. Build validation CRUD operations
+- [x] 4. Build validation CRUD operations
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   - Implement validations tRPC router with create, getAll, and getById procedures
   - Create validation form component with title and idea text fields
   - Add form validation ensuring title (1-255 chars) and idea text (10-1000 chars) constraints
@@ -57,7 +88,12 @@
   - Test validation creation flow end-to-end with database integration
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 5. Create user dashboard interface
+- [x] 5. Create user dashboard interface
+
+
+
+
+
   - Build ValidationList component displaying user's validations chronologically
   - Create ValidationCard component showing title, status, market score, and creation date
   - Implement dashboard page with loading states and empty state handling
@@ -66,7 +102,11 @@
   - Test dashboard with various data states (empty, loading, populated)
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-- [ ] 6. Setup FastAPI backend foundation
+- [x] 6. Setup FastAPI backend foundation
+
+
+
+
   - Initialize FastAPI project with proper directory structure
   - Configure environment variables and Supabase service connection
   - Create SupabaseService class for database operations
@@ -76,7 +116,15 @@
   - Test FastAPI server startup and health check endpoints
   - _Requirements: 2.4, 3.7_
 
-- [ ] 7. Implement base scraping infrastructure
+- [x] 7. Implement base scraping infrastructure
+
+
+
+
+
+
+
+
   - Create BaseScraper abstract class defining scraper interface
   - Build ScrapingService class to orchestrate parallel scraping
   - Implement keyword extraction utility from idea text

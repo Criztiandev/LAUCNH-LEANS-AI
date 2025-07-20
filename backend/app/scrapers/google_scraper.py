@@ -1,5 +1,5 @@
 """
-Google search scraper for extracting competitor information and market trends.
+Google search scraper using Patchright headless browser for extracting competitor information and market trends.
 """
 import asyncio
 import logging
@@ -11,38 +11,57 @@ from datetime import datetime
 import random
 from urllib.parse import quote_plus, urlparse
 
-import aiohttp
-from bs4 import BeautifulSoup
+from patchright.async_api import Page
 
 from .base_scraper import BaseScraper, ScrapingResult, ScrapingStatus, CompetitorData, FeedbackData
+from ..services.headless_browser_service import get_browser_service
 
 
 logger = logging.getLogger(__name__)
 
 
 class GoogleScraper(BaseScraper):
-    """Scraper for Google search to extract competitor information and market trends."""
+    """Scraper for Google search using Patchright headless browser to extract competitor information and market trends."""
     
     def __init__(self):
-        """Initialize the Google scraper."""
+        """Initialize the Google scraper with Patchright browser automation."""
         super().__init__("Google")
         self.base_url = "https://www.google.com/search"
         self.num_results = 10
         self.timeout = 30
         self.max_retries = 3
-        self.delay_between_requests = 2  # seconds
+        self.delay_between_requests = (2, 8)  # Random delay range in seconds
         
-        # User agents to rotate for avoiding bot detection
+        # Advanced stealth configuration
+        self.stealth_config = {
+            'enable_human_delays': True,
+            'enable_mouse_movements': True,
+            'enable_scroll_simulation': True,
+            'enable_typing_delays': True,
+            'min_delay_ms': 500,
+            'max_delay_ms': 3000,
+            'typing_speed_wpm': random.randint(35, 65),
+        }
+        
+        # User agents for rotation
         self.user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.1 Safari/605.1.15",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:95.0) Gecko/20100101 Firefox/95.0",
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.55 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/121.0",
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/121.0",
         ]
         
-        # Proxy configuration (optional)
-        self.proxy = os.getenv('GOOGLE_SCRAPER_PROXY')
+        # Viewport sizes for randomization
+        self.viewports = [
+            {'width': 1920, 'height': 1080},
+            {'width': 1366, 'height': 768},
+            {'width': 1440, 'height': 900},
+            {'width': 1536, 'height': 864},
+            {'width': 1280, 'height': 720},
+            {'width': 1600, 'height': 900},
+        ]
     
     def validate_config(self) -> bool:
         """
@@ -67,6 +86,16 @@ class GoogleScraper(BaseScraper):
                 logger.error("Invalid timeout or retry settings for Google scraper")
                 return False
             
+            # Check stealth configuration
+            if not self.stealth_config or not isinstance(self.stealth_config, dict):
+                logger.error("Invalid stealth configuration for Google scraper")
+                return False
+            
+            # Check viewports
+            if not self.viewports or len(self.viewports) == 0:
+                logger.error("No viewports configured for Google scraper")
+                return False
+            
             # All checks passed
             logger.info("Google scraper configuration is valid")
             return True
@@ -77,7 +106,7 @@ class GoogleScraper(BaseScraper):
     
     async def scrape(self, keywords: List[str], idea_text: str) -> ScrapingResult:
         """
-        Scrape Google search for competitor information and market trends.
+        Scrape Google search using Patchright headless browser for competitor information and market trends.
         
         Args:
             keywords: List of extracted keywords from the idea
@@ -94,38 +123,73 @@ class GoogleScraper(BaseScraper):
                 "search_queries": [],
                 "successful_queries": 0,
                 "failed_queries": 0,
-                "source": self.source_name
+                "captcha_detected": 0,
+                "bot_detection_detected": 0,
+                "browser_sessions_used": 0,
+                "source": self.source_name,
+                "scraping_method": "browser"
             }
             
             # Generate search queries based on keywords and idea text
             search_queries = self._generate_search_queries(keywords, idea_text)
             metadata["search_queries"] = search_queries
             
-            # Execute searches for each query
+            # Get browser service
+            browser_service = await get_browser_service()
+            
+            # Execute searches for each query with intelligent retry
             for query in search_queries[:5]:  # Limit to top 5 queries to avoid rate limiting
                 try:
-                    search_results = await self._execute_search(query)
+                    # Use browser service with stealth configuration
+                    search_results = await browser_service.scrape_url(
+                        url=self._build_search_url(query),
+                        scraper_function=lambda page: self._scrape_search_page(page, query),
+                        max_retries=self.max_retries,
+                        stealth_config=self._get_dynamic_stealth_config()
+                    )
+                    
+                    metadata["browser_sessions_used"] += 1
                     
                     # Extract competitor information
                     query_competitors = self._extract_competitors(search_results, query)
                     competitors.extend(query_competitors)
                     
-                    # Extract market feedback
+                    # Extract market feedback and trends
                     query_feedback = self._extract_feedback(search_results, query)
                     feedback.extend(query_feedback)
+                    
+                    # Extract search volume trends if available
+                    trends_data = self._extract_search_trends(search_results, query)
+                    if trends_data:
+                        metadata[f"trends_{query}"] = trends_data
                     
                     metadata["successful_queries"] += 1
                     metadata["keywords_searched"].append(query)
                     
-                    # Add delay between requests to avoid rate limiting
-                    await asyncio.sleep(self.delay_between_requests)
+                    # Human-like delay between requests
+                    delay = random.uniform(*self.delay_between_requests)
+                    logger.info(f"Waiting {delay:.1f} seconds before next search...")
+                    await asyncio.sleep(delay)
                     
                 except Exception as e:
-                    logger.warning(f"Failed to execute Google search for query '{query}': {str(e)}")
+                    error_msg = str(e).lower()
+                    if 'captcha' in error_msg:
+                        metadata["captcha_detected"] += 1
+                        logger.warning(f"CAPTCHA detected for query '{query}': {str(e)}")
+                    elif 'bot detection' in error_msg or 'blocked' in error_msg:
+                        metadata["bot_detection_detected"] += 1
+                        logger.warning(f"Bot detection triggered for query '{query}': {str(e)}")
+                    else:
+                        logger.warning(f"Failed to execute Google search for query '{query}': {str(e)}")
+                    
                     metadata["failed_queries"] += 1
+                    
+                    # Exponential backoff on failures
+                    backoff_delay = min(30, 2 ** metadata["failed_queries"])
+                    await asyncio.sleep(backoff_delay)
                     continue
             
-            # Remove duplicate competitors based on name
+            # Remove duplicate competitors based on name and website
             unique_competitors = self._deduplicate_competitors(competitors)
             
             # Remove duplicate feedback
@@ -133,21 +197,26 @@ class GoogleScraper(BaseScraper):
             
             # Determine scraping status
             if metadata["successful_queries"] > 0:
-                status = ScrapingStatus.SUCCESS if len(unique_competitors) > 0 else ScrapingStatus.PARTIAL_SUCCESS
+                if len(unique_competitors) > 0:
+                    status = ScrapingStatus.SUCCESS
+                elif metadata["captcha_detected"] > 0 or metadata["bot_detection_detected"] > 0:
+                    status = ScrapingStatus.PARTIAL_SUCCESS
+                else:
+                    status = ScrapingStatus.PARTIAL_SUCCESS
             else:
                 status = ScrapingStatus.FAILED
             
-            # Update metadata
+            # Update metadata with final stats
             metadata.update({
                 "total_competitors": len(unique_competitors),
-                "total_feedback": len(unique_feedback)
+                "total_feedback": len(unique_feedback),
+                "success_rate": metadata["successful_queries"] / len(search_queries) if search_queries else 0,
+                "anti_bot_encounters": metadata["captcha_detected"] + metadata["bot_detection_detected"]
             })
             
-            # If we didn't find any competitors, just return an empty array
-            # We don't want to return mock data as it would be inaccurate
-            if not unique_competitors:
-                logger.warning("No competitors found from Google search results")
-                # Keep status as is - it will be FAILED if no successful queries, otherwise PARTIAL_SUCCESS
+            logger.info(f"Google scraping completed: {len(unique_competitors)} competitors, "
+                       f"{len(unique_feedback)} feedback items, "
+                       f"{metadata['successful_queries']}/{len(search_queries)} successful queries")
             
             return ScrapingResult(
                 status=status,
@@ -162,8 +231,500 @@ class GoogleScraper(BaseScraper):
                 status=ScrapingStatus.FAILED,
                 competitors=[],
                 feedback=[],
-                error_message=str(e)
+                error_message=str(e),
+                metadata=metadata
             )
+    
+    def _build_search_url(self, query: str) -> str:
+        """
+        Build Google search URL with query parameters.
+        
+        Args:
+            query: Search query string
+            
+        Returns:
+            Complete Google search URL
+        """
+        encoded_query = quote_plus(query)
+        return f"{self.base_url}?q={encoded_query}&num={self.num_results}&hl=en&gl=us"
+    
+    def _get_dynamic_stealth_config(self) -> Dict[str, Any]:
+        """
+        Get dynamic stealth configuration with randomization.
+        
+        Returns:
+            Stealth configuration dictionary
+        """
+        config = self.stealth_config.copy()
+        
+        # Randomize user agent
+        config['user_agent'] = random.choice(self.user_agents)
+        
+        # Randomize viewport
+        config['viewport'] = random.choice(self.viewports)
+        
+        # Randomize typing speed
+        config['typing_speed_wpm'] = random.randint(35, 65)
+        
+        # Randomize delays
+        config['min_delay_ms'] = random.randint(300, 800)
+        config['max_delay_ms'] = random.randint(1500, 4000)
+        
+        return config
+    
+    async def _scrape_search_page(self, page: Page, query: str) -> Dict[str, Any]:
+        """
+        Scrape Google search page using Patchright with human-like behavior.
+        
+        Args:
+            page: Patchright page object
+            query: Search query
+            
+        Returns:
+            Dictionary containing scraped search results
+        """
+        results = {
+            "query": query,
+            "organic_results": [],
+            "featured_snippet": None,
+            "knowledge_panel": None,
+            "related_searches": [],
+            "search_volume_data": None,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        try:
+            # Wait for page to load completely
+            await page.wait_for_load_state('networkidle', timeout=30000)
+            
+            # Check for CAPTCHA or bot detection
+            if await self._detect_captcha_or_bot_detection(page):
+                raise RuntimeError("CAPTCHA or bot detection encountered")
+            
+            # Simulate human reading behavior
+            await self._simulate_human_reading(page)
+            
+            # Extract organic search results with dynamic selectors
+            await self._extract_organic_results(page, results)
+            
+            # Extract featured snippet if present
+            await self._extract_featured_snippet(page, results)
+            
+            # Extract knowledge panel if present
+            await self._extract_knowledge_panel(page, results)
+            
+            # Extract related searches
+            await self._extract_related_searches(page, results)
+            
+            # Extract search volume trends if available
+            await self._extract_search_volume_trends(page, results)
+            
+            # Simulate human scrolling behavior
+            await self._simulate_human_scrolling(page)
+            
+            logger.info(f"Successfully scraped Google search page for query: {query}")
+            logger.info(f"Found {len(results['organic_results'])} organic results")
+            
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error scraping Google search page for query '{query}': {str(e)}")
+            raise
+    
+    async def _detect_captcha_or_bot_detection(self, page: Page) -> bool:
+        """
+        Detect CAPTCHA or bot detection on the page.
+        
+        Args:
+            page: Patchright page object
+            
+        Returns:
+            True if CAPTCHA or bot detection is detected
+        """
+        # Check for CAPTCHA elements
+        captcha_selectors = [
+            '[class*="captcha"]',
+            '[id*="captcha"]',
+            '[class*="recaptcha"]',
+            '[id*="recaptcha"]',
+            'iframe[src*="recaptcha"]',
+            '.g-recaptcha',
+            '#recaptcha',
+            '[data-sitekey]',
+        ]
+        
+        for selector in captcha_selectors:
+            try:
+                element = await page.query_selector(selector)
+                if element and await element.is_visible():
+                    logger.warning(f"CAPTCHA detected with selector: {selector}")
+                    return True
+            except Exception:
+                continue
+        
+        # Check for bot detection text
+        try:
+            page_text = await page.text_content('body')
+            if page_text:
+                page_text_lower = page_text.lower()
+                bot_detection_phrases = [
+                    'unusual traffic',
+                    'automated queries',
+                    'verify you are human',
+                    'prove you are not a robot',
+                    'security check',
+                    'suspicious activity',
+                    'blocked',
+                    'access denied',
+                    'rate limit',
+                    'too many requests'
+                ]
+                
+                for phrase in bot_detection_phrases:
+                    if phrase in page_text_lower:
+                        logger.warning(f"Bot detection detected with phrase: {phrase}")
+                        return True
+        except Exception:
+            pass
+        
+        return False
+    
+    async def _simulate_human_reading(self, page: Page) -> None:
+        """
+        Simulate human reading behavior with random delays.
+        
+        Args:
+            page: Patchright page object
+        """
+        # Random delay to simulate reading the page
+        reading_delay = random.uniform(1.5, 4.0)
+        await asyncio.sleep(reading_delay)
+        
+        # Simulate mouse movement
+        try:
+            viewport = await page.viewport_size()
+            if viewport:
+                # Move mouse to random positions
+                for _ in range(random.randint(2, 5)):
+                    x = random.randint(100, viewport['width'] - 100)
+                    y = random.randint(100, viewport['height'] - 100)
+                    await page.mouse.move(x, y)
+                    await asyncio.sleep(random.uniform(0.1, 0.3))
+        except Exception:
+            pass
+    
+    async def _simulate_human_scrolling(self, page: Page) -> None:
+        """
+        Simulate human scrolling behavior.
+        
+        Args:
+            page: Patchright page object
+        """
+        try:
+            # Scroll down in small increments
+            for _ in range(random.randint(2, 5)):
+                scroll_distance = random.randint(200, 500)
+                await page.mouse.wheel(0, scroll_distance)
+                await asyncio.sleep(random.uniform(0.5, 1.5))
+            
+            # Sometimes scroll back up
+            if random.random() < 0.3:
+                scroll_distance = random.randint(100, 300)
+                await page.mouse.wheel(0, -scroll_distance)
+                await asyncio.sleep(random.uniform(0.3, 0.8))
+        except Exception:
+            pass
+    
+    async def _extract_organic_results(self, page: Page, results: Dict[str, Any]) -> None:
+        """
+        Extract organic search results using dynamic selectors.
+        
+        Args:
+            page: Patchright page object
+            results: Results dictionary to populate
+        """
+        # Modern Google search result selectors (updated for 2024)
+        result_selectors = [
+            'div.MjjYud',  # Main result container
+            'div.g',       # Classic result container
+            'div.tF2Cxc',  # Alternative result container
+            'div.yuRUbf',  # Link container
+            'div.kvH3mc',  # Another variant
+            'div.hlcw0c',  # Mobile variant
+        ]
+        
+        for selector in result_selectors:
+            try:
+                result_elements = await page.query_selector_all(selector)
+                if result_elements:
+                    logger.info(f"Found {len(result_elements)} results with selector: {selector}")
+                    
+                    for element in result_elements:
+                        try:
+                            result_data = await self._extract_single_result(element)
+                            if result_data and result_data.get('title') and result_data.get('link'):
+                                # Skip Google-specific links
+                                link = result_data['link']
+                                if not link.startswith('/') and 'google.com' not in link:
+                                    results['organic_results'].append(result_data)
+                        except Exception as e:
+                            logger.debug(f"Failed to extract single result: {str(e)}")
+                            continue
+                    
+                    # If we found results, break
+                    if results['organic_results']:
+                        break
+                        
+            except Exception as e:
+                logger.debug(f"Failed to query selector {selector}: {str(e)}")
+                continue
+        
+        logger.info(f"Extracted {len(results['organic_results'])} organic results")
+    
+    async def _extract_single_result(self, element) -> Optional[Dict[str, Any]]:
+        """
+        Extract data from a single search result element.
+        
+        Args:
+            element: Page element containing the search result
+            
+        Returns:
+            Dictionary with result data or None
+        """
+        try:
+            # Try multiple title selectors
+            title_selectors = [
+                'h3',
+                'h3.LC20lb',
+                'h3.DKV0Md',
+                '[role="heading"]',
+                'a h3',
+                'h3.zBAuLc',
+                'h3.DFN0Dc',
+                '.DKV0Md',
+                '.LC20lb'
+            ]
+            
+            title = None
+            for selector in title_selectors:
+                try:
+                    title_element = await element.query_selector(selector)
+                    if title_element:
+                        title = await title_element.text_content()
+                        if title and title.strip():
+                            break
+                except Exception:
+                    continue
+            
+            # Try multiple link selectors
+            link_selectors = [
+                'a[href]',
+                'a.cz3goc',
+                'div.yuRUbf a',
+                'div.Z26q7c a',
+                'div.kvH3mc a',
+                'h3 a',
+                'a[href^="http"]'
+            ]
+            
+            link = None
+            for selector in link_selectors:
+                try:
+                    link_element = await element.query_selector(selector)
+                    if link_element:
+                        link = await link_element.get_attribute('href')
+                        if link and link.startswith('http'):
+                            break
+                except Exception:
+                    continue
+            
+            # Try multiple snippet selectors
+            snippet_selectors = [
+                'div.VwiC3b',
+                'span.aCOpRe',
+                'div.s3v9rd',
+                'div.lEBKkf',
+                'div.yXK7lf',
+                'div.Z26q7c div.VwiC3b',
+                'div.kvH3mc div.VwiC3b',
+                'div.HiHjCd',
+                'div.BNeawe.s3v9rd.AP7Wnd',
+                '.VwiC3b',
+                '.s3v9rd'
+            ]
+            
+            snippet = ""
+            for selector in snippet_selectors:
+                try:
+                    snippet_element = await element.query_selector(selector)
+                    if snippet_element:
+                        snippet = await snippet_element.text_content()
+                        if snippet and snippet.strip():
+                            break
+                except Exception:
+                    continue
+            
+            if title and link:
+                return {
+                    'title': title.strip(),
+                    'link': link,
+                    'snippet': snippet.strip() if snippet else ""
+                }
+            
+            return None
+            
+        except Exception as e:
+            logger.debug(f"Error extracting single result: {str(e)}")
+            return None
+    
+    async def _extract_featured_snippet(self, page: Page, results: Dict[str, Any]) -> None:
+        """
+        Extract featured snippet if present.
+        
+        Args:
+            page: Patchright page object
+            results: Results dictionary to populate
+        """
+        featured_selectors = [
+            'div.c2xzTb',
+            'div.IZ6rdc',
+            'div.xpdopen',
+            'div.kp-wholepage',
+            'div.ifM9O',
+            '.c2xzTb',
+            '.IZ6rdc'
+        ]
+        
+        for selector in featured_selectors:
+            try:
+                element = await page.query_selector(selector)
+                if element:
+                    snippet_text = await element.text_content()
+                    if snippet_text and snippet_text.strip():
+                        results['featured_snippet'] = snippet_text.strip()
+                        logger.debug(f"Extracted featured snippet with selector: {selector}")
+                        break
+            except Exception:
+                continue
+    
+    async def _extract_knowledge_panel(self, page: Page, results: Dict[str, Any]) -> None:
+        """
+        Extract knowledge panel information if present.
+        
+        Args:
+            page: Patchright page object
+            results: Results dictionary to populate
+        """
+        knowledge_selectors = [
+            'div.kp-wholepage',
+            'div.knowledge-panel',
+            'div.kp-header',
+            '.kp-wholepage',
+            '.knowledge-panel'
+        ]
+        
+        for selector in knowledge_selectors:
+            try:
+                element = await page.query_selector(selector)
+                if element:
+                    panel_text = await element.text_content()
+                    if panel_text and panel_text.strip():
+                        results['knowledge_panel'] = panel_text.strip()
+                        logger.debug(f"Extracted knowledge panel with selector: {selector}")
+                        break
+            except Exception:
+                continue
+    
+    async def _extract_related_searches(self, page: Page, results: Dict[str, Any]) -> None:
+        """
+        Extract related searches if present.
+        
+        Args:
+            page: Patchright page object
+            results: Results dictionary to populate
+        """
+        related_selectors = [
+            'div.AJLUJb > div > a',
+            'div.brs_col a',
+            'div.s75CSd',
+            'div.card-section a',
+            '.AJLUJb a',
+            '.brs_col a'
+        ]
+        
+        for selector in related_selectors:
+            try:
+                elements = await page.query_selector_all(selector)
+                if elements:
+                    for element in elements:
+                        try:
+                            text = await element.text_content()
+                            if text and text.strip():
+                                results['related_searches'].append(text.strip())
+                        except Exception:
+                            continue
+                    
+                    if results['related_searches']:
+                        logger.debug(f"Extracted {len(results['related_searches'])} related searches")
+                        break
+            except Exception:
+                continue
+    
+    async def _extract_search_volume_trends(self, page: Page, results: Dict[str, Any]) -> None:
+        """
+        Extract search volume trends and related keyword data if available.
+        
+        Args:
+            page: Patchright page object
+            results: Results dictionary to populate
+        """
+        try:
+            # Look for Google Trends data or search volume indicators
+            trends_selectors = [
+                'div[data-trends]',
+                '.trends-widget',
+                '.search-volume',
+                '[data-search-volume]'
+            ]
+            
+            for selector in trends_selectors:
+                try:
+                    element = await page.query_selector(selector)
+                    if element:
+                        trends_data = await element.text_content()
+                        if trends_data and trends_data.strip():
+                            results['search_volume_data'] = trends_data.strip()
+                            logger.debug(f"Extracted search volume data with selector: {selector}")
+                            break
+                except Exception:
+                    continue
+            
+            # Extract related keywords from autocomplete or suggestions
+            suggestion_selectors = [
+                '.sbqs_c',
+                '.suggestions',
+                '.autocomplete'
+            ]
+            
+            related_keywords = []
+            for selector in suggestion_selectors:
+                try:
+                    elements = await page.query_selector_all(selector)
+                    for element in elements:
+                        try:
+                            text = await element.text_content()
+                            if text and text.strip():
+                                related_keywords.append(text.strip())
+                        except Exception:
+                            continue
+                except Exception:
+                    continue
+            
+            if related_keywords:
+                results['related_keywords'] = related_keywords[:10]  # Limit to top 10
+                
+        except Exception as e:
+            logger.debug(f"Error extracting search volume trends: {str(e)}")
     
     def _generate_search_queries(self, keywords: List[str], idea_text: str) -> List[str]:
         """
@@ -238,269 +799,71 @@ class GoogleScraper(BaseScraper):
             matches = re.findall(pattern, idea_text, re.IGNORECASE)
             if matches:
                 if isinstance(matches[0], tuple):
-                    # Return the most relevant part of the match
-                    return matches[0][0].strip().lower()
-                return matches[0].strip().lower()
+                    # Return the most relevant part of the match, cleaned up
+                    result = matches[0][0].strip().lower()
+                    # Remove leading articles
+                    result = re.sub(r'^(a|an|the)\s+', '', result)
+                    return result
+                result = matches[0].strip().lower()
+                # Remove leading articles
+                result = re.sub(r'^(a|an|the)\s+', '', result)
+                return result
         
         # Fallback to first keyword if no pattern matches
         return keywords[0] if keywords else None
     
-    async def _execute_search(self, query: str) -> Dict[str, Any]:
-        """
-        Execute a Google search query and parse the results.
-        
-        Args:
-            query: Search query string
-            
-        Returns:
-            Dictionary containing parsed search results
-        """
-        # Encode query for URL
-        encoded_query = quote_plus(query)
-        
-        # Construct search URL
-        url = f"{self.base_url}?q={encoded_query}&num={self.num_results}"
-        
-        # Select random user agent
-        headers = {
-            "User-Agent": random.choice(self.user_agents),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5",
-            "Referer": "https://www.google.com/",
-            "DNT": "1",
-            "Connection": "keep-alive",
-            "Upgrade-Insecure-Requests": "1"
-        }
-        
-        # Setup proxy if configured
-        proxy = self.proxy
-        
-        # Execute request with retries
-        for attempt in range(self.max_retries):
-            try:
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(
-                        url,
-                        headers=headers,
-                        proxy=proxy,
-                        timeout=aiohttp.ClientTimeout(total=self.timeout)
-                    ) as response:
-                        if response.status == 200:
-                            html_content = await response.text()
-                            return self._parse_search_results(html_content, query)
-                        elif response.status == 429:  # Too Many Requests
-                            logger.warning(f"Rate limited by Google (429). Attempt {attempt + 1}/{self.max_retries}")
-                            # Exponential backoff
-                            await asyncio.sleep(2 ** attempt + random.random())
-                            continue
-                        else:
-                            logger.warning(f"Google search failed with status {response.status}. Attempt {attempt + 1}/{self.max_retries}")
-                            # Try with a different user agent
-                            headers["User-Agent"] = random.choice(self.user_agents)
-                            await asyncio.sleep(1)
-                            continue
-            except asyncio.TimeoutError:
-                logger.warning(f"Google search timed out. Attempt {attempt + 1}/{self.max_retries}")
-                await asyncio.sleep(1)
-                continue
-            except Exception as e:
-                logger.warning(f"Google search request failed: {str(e)}. Attempt {attempt + 1}/{self.max_retries}")
-                await asyncio.sleep(1)
-                continue
-        
-        # If all retries failed, raise exception
-        raise Exception(f"Failed to execute Google search for query '{query}' after {self.max_retries} attempts")
+
     
-    def _parse_search_results(self, html_content: str, query: str) -> Dict[str, Any]:
+
+    
+    def _extract_search_trends(self, search_results: Dict[str, Any], query: str) -> Optional[Dict[str, Any]]:
         """
-        Parse Google search results HTML.
+        Extract search volume trends and related keyword data for market intelligence.
         
         Args:
-            html_content: HTML content from Google search
+            search_results: Parsed search results
             query: Original search query
             
         Returns:
-            Dictionary containing parsed search results
+            Dictionary with trends data or None
         """
-        results = {
-            "query": query,
-            "organic_results": [],
-            "featured_snippet": None,
-            "knowledge_panel": None,
-            "related_searches": []
-        }
+        trends_data = {}
         
-        try:
-            soup = BeautifulSoup(html_content, 'html.parser')
-            
-            # Save the HTML for debugging
-            debug_file = f"google_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
-            with open(debug_file, 'w', encoding='utf-8') as f:
-                f.write(html_content)
-            logger.info(f"Saved debug HTML to {debug_file}")
-            
-            # Extract organic search results - try multiple selectors to handle Google's changing structure
-            result_selectors = [
-                'div.g', 
-                'div.tF2Cxc', 
-                'div.yuRUbf',
-                'div[data-sokoban-container]',
-                'div.rc',
-                'div.jtfYYd',
-                'div.mnr-c',
-                # Additional selectors for modern Google results
-                'div.MjjYud',
-                'div.v7W49e',
-                'div.hlcw0c',
-                'div.g.Ww4FFb.vt6azd.tF2Cxc',
-                'div.kvH3mc.BToiNc.UK95Uc',
-                'div.Z26q7c.UK95Uc.jGGQ5e',
-                'div.g div.BYM4Nd',
-                'div.g div.tF2Cxc',
-                'div.g div.kvH3mc'
-            ]
-            
-            # Try each selector until we find results
-            for selector in result_selectors:
-                results_found = False
-                for result in soup.select(selector):
-                    try:
-                        # Try multiple title selectors
-                        title_element = (
-                            result.select_one('h3') or 
-                            result.select_one('h3.LC20lb') or
-                            result.select_one('.DKV0Md') or
-                            result.select_one('[role="heading"]') or
-                            result.select_one('a h3') or
-                            result.select_one('h3.zBAuLc') or
-                            result.select_one('h3.DFN0Dc')
-                        )
-                        
-                        # Try multiple link selectors
-                        link_element = (
-                            result.select_one('a[href]') or
-                            result.select_one('a.cz3goc') or
-                            result.select_one('div.yuRUbf a') or
-                            result.select_one('div.Z26q7c a') or
-                            result.select_one('div.kvH3mc a')
-                        )
-                        
-                        # Try multiple snippet selectors
-                        snippet_element = (
-                            result.select_one('div.VwiC3b') or
-                            result.select_one('span.aCOpRe') or
-                            result.select_one('div.s3v9rd') or
-                            result.select_one('div.lEBKkf') or
-                            result.select_one('div.yXK7lf') or
-                            result.select_one('div.Z26q7c div.VwiC3b') or
-                            result.select_one('div.kvH3mc div.VwiC3b') or
-                            result.select_one('div.HiHjCd') or
-                            result.select_one('div.BNeawe.s3v9rd.AP7Wnd')
-                        )
-                        
-                        if title_element and link_element and 'href' in link_element.attrs:
-                            title = title_element.get_text()
-                            link = link_element['href']
-                            snippet = snippet_element.get_text() if snippet_element else ""
-                            
-                            # Skip Google-specific links
-                            if link.startswith('/'):
-                                continue
-                                
-                            # Skip if link contains google.com
-                            if 'google.com' in link:
-                                continue
-                                
-                            results["organic_results"].append({
-                                "title": title,
-                                "link": link,
-                                "snippet": snippet
-                            })
-                            results_found = True
-                            
-                            # Log successful extraction
-                            logger.debug(f"Extracted result: {title} - {link}")
-                    except Exception as e:
-                        logger.debug(f"Failed to parse search result: {str(e)}")
-                        continue
+        # Extract search volume data if available
+        if search_results.get('search_volume_data'):
+            trends_data['search_volume'] = search_results['search_volume_data']
+        
+        # Extract related keywords
+        if search_results.get('related_keywords'):
+            trends_data['related_keywords'] = search_results['related_keywords']
+        
+        # Extract related searches as trend indicators
+        if search_results.get('related_searches'):
+            trends_data['related_searches'] = search_results['related_searches'][:5]
+        
+        # Analyze result titles for market trends
+        if search_results.get('organic_results'):
+            trend_keywords = []
+            for result in search_results['organic_results'][:10]:
+                title = result.get('title', '').lower()
+                snippet = result.get('snippet', '').lower()
+                combined_text = f"{title} {snippet}"
                 
-                # If we found results with this selector, stop trying others
-                if results_found:
-                    logger.info(f"Found {len(results['organic_results'])} results with selector: {selector}")
-                    break
+                # Look for trend indicators
+                trend_indicators = [
+                    'trending', 'popular', 'growing', 'emerging', 'rising',
+                    'best', 'top', 'leading', 'market leader', 'industry standard',
+                    '2024', '2023', 'new', 'latest', 'updated'
+                ]
+                
+                for indicator in trend_indicators:
+                    if indicator in combined_text:
+                        trend_keywords.append(indicator)
             
-            # If we still don't have results, try a more generic approach
-            if not results["organic_results"]:
-                logger.info("No results found with specific selectors, trying generic approach")
-                # Look for any heading followed by a link
-                headings = soup.find_all(['h3', 'h2'])
-                for heading in headings:
-                    try:
-                        # Find closest link
-                        link_element = heading.find_parent('a') or heading.find_next('a')
-                        if link_element and 'href' in link_element.attrs:
-                            link = link_element['href']
-                            if not link.startswith('/') and 'google.com' not in link:
-                                # Find snippet - any div or span near the heading
-                                snippet_element = heading.find_next(['div', 'span'])
-                                snippet = snippet_element.get_text() if snippet_element else ""
-                                
-                                results["organic_results"].append({
-                                    "title": heading.get_text(),
-                                    "link": link,
-                                    "snippet": snippet
-                                })
-                                logger.debug(f"Extracted result with generic approach: {heading.get_text()} - {link}")
-                    except Exception as e:
-                        continue
-            
-            # Extract featured snippet if present - try multiple selectors
-            featured_selectors = ['div.c2xzTb', 'div.IZ6rdc', 'div.xpdopen', 'div.kp-wholepage', 'div.ifM9O']
-            for selector in featured_selectors:
-                featured_snippet = soup.select_one(selector)
-                if featured_snippet:
-                    snippet_text = featured_snippet.get_text()
-                    results["featured_snippet"] = snippet_text
-                    logger.debug(f"Extracted featured snippet with selector: {selector}")
-                    break
-            
-            # Extract related searches - try multiple selectors
-            related_selectors = [
-                'div.AJLUJb > div > a', 
-                'div.brs_col a', 
-                'div.s75CSd',
-                'div.card-section a'
-            ]
-            for selector in related_selectors:
-                related_searches = soup.select(selector)
-                if related_searches:
-                    for related in related_searches:
-                        results["related_searches"].append(related.get_text())
-                    logger.debug(f"Extracted {len(results['related_searches'])} related searches with selector: {selector}")
-                    break
-            
-            # Save the HTML for debugging if no results were found
-            if not results["organic_results"]:
-                logger.warning(f"No results found for query: {query}")
-                # Try a last-resort approach - find all links with text
-                all_links = soup.find_all('a')
-                for link in all_links:
-                    if link.get_text() and 'href' in link.attrs:
-                        href = link['href']
-                        if href.startswith('http') and 'google.com' not in href:
-                            results["organic_results"].append({
-                                "title": link.get_text().strip(),
-                                "link": href,
-                                "snippet": ""
-                            })
-                            logger.debug(f"Last resort extraction: {link.get_text().strip()} - {href}")
-            
-            logger.info(f"Extracted {len(results['organic_results'])} organic results for query: {query}")
-            return results
-            
-        except Exception as e:
-            logger.warning(f"Failed to parse Google search results: {str(e)}")
-            return results
+            if trend_keywords:
+                trends_data['trend_indicators'] = list(set(trend_keywords))
+        
+        return trends_data if trends_data else None
     
     def _extract_competitors(self, search_results: Dict[str, Any], query: str) -> List[CompetitorData]:
         """
@@ -549,6 +912,11 @@ class GoogleScraper(BaseScraper):
                         estimated_revenue=estimated_revenue,
                         pricing_model=self._extract_pricing_model(snippet)
                     )
+                    
+                    # Add scraping method metadata
+                    if not hasattr(competitor, 'metadata'):
+                        competitor.metadata = {}
+                    competitor.metadata['scraping_method'] = 'browser'
                     
                     # Try to extract additional information
                     self._enrich_competitor_data(competitor, title, snippet)
@@ -716,6 +1084,21 @@ class GoogleScraper(BaseScraper):
         combined_text = f"{title.lower()} {snippet.lower()}"
         query_lower = query.lower()
         
+        # Strong non-competitor indicators that should exclude results
+        strong_non_competitor_indicators = [
+            "what is", "definition", "guide", "tutorial", "how to",
+            "wikipedia", "blog post", "article", "news", "forum",
+            "reddit", "quora", "stack overflow", "github", "youtube",
+            "facebook", "twitter", "instagram", "linkedin", "pinterest",
+            "tiktok", "dictionary", "glossary", "faq", "help center"
+        ]
+        
+        # Check for strong exclusion indicators first
+        has_strong_exclusion = any(indicator in combined_text for indicator in strong_non_competitor_indicators)
+        if has_strong_exclusion:
+            logger.debug(f"Excluded due to strong non-competitor indicator: {title}")
+            return False
+        
         # Check for competitor indicators
         competitor_indicators = [
             "software", "platform", "tool", "solution", "app", "saas",
@@ -724,19 +1107,8 @@ class GoogleScraper(BaseScraper):
             "analytics", "automation", "integration", "workflow", "pipeline"
         ]
         
-        # Check for non-competitor indicators
-        non_competitor_indicators = [
-            "wikipedia", "definition", "what is", "how to", "tutorial",
-            "guide", "blog", "news", "article", "forum", "reddit", "quora",
-            "stack overflow", "github", "youtube", "facebook", "twitter",
-            "instagram", "linkedin", "pinterest", "tiktok", "dictionary"
-        ]
-        
         # Check if title contains competitor indicators
         has_competitor_indicator = any(indicator in combined_text for indicator in competitor_indicators)
-        
-        # Check if title contains non-competitor indicators
-        has_non_competitor_indicator = any(indicator in combined_text for indicator in non_competitor_indicators)
         
         # Check if query is competitor-focused
         is_competitor_query = any(pattern in query_lower for pattern in [
@@ -766,21 +1138,22 @@ class GoogleScraper(BaseScraper):
         # For CRM-specific queries, be more lenient
         is_crm_query = "crm" in query_lower
         
-        # Combine all signals
+        # Combine all signals - require stronger evidence for competitor classification
         is_competitor = (
-            (has_competitor_indicator and not has_non_competitor_indicator) or
+            (has_competitor_indicator and has_company_name) or
             is_competitor_query or
             has_product_pattern or
             has_pricing_mention or
-            (product_category_mentioned and not has_non_competitor_indicator) or
-            (has_company_name and has_competitor_indicator) or
-            (has_domain and has_competitor_indicator) or
-            (is_crm_query and has_company_name)
+            (product_category_mentioned and has_company_name and has_competitor_indicator) or
+            (has_domain and has_competitor_indicator and has_company_name) or
+            (is_crm_query and has_company_name and has_competitor_indicator)
         )
         
         # Log the decision
         if is_competitor:
             logger.debug(f"Identified as competitor: {title}")
+        else:
+            logger.debug(f"Not identified as competitor: {title}")
         
         return is_competitor
     
@@ -813,8 +1186,26 @@ class GoogleScraper(BaseScraper):
         try:
             domain = urlparse(url).netloc
             
-            # Remove www. and common TLDs
+            # Remove www. prefix
             domain = re.sub(r'^www\.', '', domain)
+            
+            # Handle special cases first
+            if domain.lower() == "monday.com":
+                return "Monday"
+            elif domain.lower() == "asana.com":
+                return "Asana"
+            elif domain.lower() in ["salesforce.com", "salesforce.org"]:
+                return "Salesforce"
+            elif domain.lower() == "hubspot.com":
+                return "HubSpot"
+            elif domain.lower() == "zoho.com":
+                return "Zoho"
+            elif domain.lower() == "pipedrive.com":
+                return "Pipedrive"
+            elif domain.lower() == "freshworks.com":
+                return "Freshworks"
+            
+            # Remove common TLDs
             domain = re.sub(r'\.(com|org|net|io|co|app|ai)$', '', domain)
             
             # Handle subdomains
@@ -827,9 +1218,6 @@ class GoogleScraper(BaseScraper):
             
             # Convert to title case for better readability
             if domain and len(domain) >= 2:
-                # Handle special cases like "salesforce" -> "Salesforce"
-                if domain.lower() in ["salesforce", "hubspot", "zoho", "pipedrive", "freshworks"]:
-                    return domain.title()
                 # Handle camelCase or kebab-case domains
                 if '-' in domain:
                     parts = domain.split('-')

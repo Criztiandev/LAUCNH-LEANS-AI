@@ -12,6 +12,9 @@ from app.services.scraping_service import ScrapingService
 from app.scrapers.product_hunt_scraper import ProductHuntScraper
 from app.scrapers.google_scraper import GoogleScraper
 from app.scrapers.reddit_scraper import RedditScraper
+from app.scrapers.google_play_store_scraper import GooglePlayStoreScraper
+from app.scrapers.app_store_scraper import AppStoreScraper
+from app.scrapers.microsoft_store_scraper import MicrosoftStoreScraper
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +85,18 @@ async def process_validation_background(validation_id: str) -> None:
         # Register Google scraper
         google_scraper = GoogleScraper()
         scraping_service.register_scraper(google_scraper)
+        
+        # Register Google Play Store scraper
+        google_play_scraper = GooglePlayStoreScraper()
+        scraping_service.register_scraper(google_play_scraper)
+        
+        # Register iOS App Store scraper
+        app_store_scraper = AppStoreScraper()
+        scraping_service.register_scraper(app_store_scraper)
+        
+        # Register Microsoft Store scraper
+        microsoft_store_scraper = MicrosoftStoreScraper()
+        scraping_service.register_scraper(microsoft_store_scraper)
         
         logger.info(f"Registered scrapers: {scraping_service.get_registered_scrapers()}")
         

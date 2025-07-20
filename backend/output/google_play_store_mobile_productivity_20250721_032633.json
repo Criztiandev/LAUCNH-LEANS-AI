@@ -1,0 +1,568 @@
+{
+  "timestamp": "2025-07-21T03:26:33.065864",
+  "search_keywords": [
+    "productivity"
+  ],
+  "app_idea": "A productivity app for mobile users",
+  "total_competitors": 15,
+  "total_feedback": 20,
+  "data_source": "Google Play Store (Mobile-Optimized)",
+  "processing_time_seconds": 22.987751,
+  "scraping_status": "success",
+  "competitors": [
+    {
+      "name": "ChatGPT",
+      "description": "Introducing ChatGPT for Android: OpenAI\u2019s latest advancements at your fingertips.\r\n\r\nThis official app is free, syncs your history across devices, and brings you the latest from OpenAI, including the new image generator.\r\n\r\nWith ChatGPT in your pocket, you\u2019ll find:\r\n\r\n\u00b7 Image generation\u2013Generate original images from a description, or transform existing ones with a few simple words. \r\n\u00b7 Advanced Voice Mode\u2013Tap the soundwave icon to have a real-time convo on the go. Settle a dinner table debate, or practice a new language. \r\n\u00b7 Photo upload\u2014Snap or upload a picture to transcribe a handwritten recipe or get info about a landmark. \r\n\u00b7 Creative inspiration\u2014Find custom birthday gift ideas or create a personalized greeting card.\r\n\u00b7 Tailored advice\u2014Talk through a tough situation, ask for a detailed travel itinerary, or get help crafting the perfect response. \r\n\u00b7 Personalized learning\u2014Explain electricity to a dinosaur-loving kid or easily brush up yourself on a historic event.\r\n\u00b7 Professional input\u2014Brainstorm marketing copy or map out a business plan.\r\n\u00b7 Instant answers\u2014Get recipe suggestions when you only have a few ingredients.\r\n\r\nJoin hundreds of millions of users and try the app captivating the world. Download ChatGPT today.\r\n\r\nTerms of service & privacy policy:\r\nhttps://openai.com/policies/terms-of-use\r\nhttps://openai.com/policies/privacy-policy",
+      "website": "https://help.openai.com",
+      "estimated_users": "500,000,000+",
+      "estimated_revenue": null,
+      "pricing_model": "Freemium",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.openai.chatgpt",
+      "confidence_score": 0.9,
+      "launch_date": "Jul 21, 2023",
+      "founder_ceo": "OpenAI",
+      "most_helpful_review": null,
+      "review_count": 93373,
+      "average_rating": 4.7788334
+    },
+    {
+      "name": "Google Gemini",
+      "description": "Supercharge your creativity and productivity with Gemini, your AI assistant from Google.\r\n\r\nGemini gives you direct access to Google\u2019s best family of AI models on your phone so you can:\r\n\r\n- Go Live with Gemini to brainstorm ideas, simplify complex topics, and rehearse for important moments. Just click on the Gemini Live button in your Gemini app\r\n- Connect with your favorite Google apps like Search, YouTube, Google Maps, Gmail, and more\r\n- Study smarter and explore any topic with interactive visuals and real-world examples\r\n- Turn any file into a podcast that you can listen to anytime, anywhere\r\n- Create stunning images from just a few words\r\n- Plan trips better and faster\r\n- Get summaries, deep dives, and source links, all in one place\r\n- Brainstorm new ideas, or improve existing ones\r\n\r\nLevel-up your Gemini app experience by upgrading to the Pro plan\u2013unlock new and powerful features to tackle complex tasks and projects and enjoy industry-leading 1M token context window (enabling Gemini to process up to 1,500 pages of text or 30k lines of code), and:\r\n- Get more access our most powerful model, like 2.5 Pro\r\n- Generate and dive into detailed reports on any topic with Deep Research powered by 2.5 Pro\r\n- Turn words into high-quality, 8 second video clips with video generation with Veo 2, and more. \r\n\r\nGoogle AI Pro is available in 150 countries and territories, and includes additional benefits. Gemini app, as part of Google AI Pro, will continue to be available to qualifying Google Workspace business and education plans. Learn more: https://gemini.google/subscriptions/\r\n\r\nGet the best of Gemini [app] by upgrading to the Ultra plan\u2013unlock the highest level of access and exclusive features to turn anything into anything. Get the highest access to Google\u2019s most powerful model, like 2.5 Pro, and features like video generation with Veo 3 and Deep Research. You\u2019ll also get early access to try our newest AI innovations as they become available, including Agent Mode.\r\n\r\nGemini in Google AI Ultra is available in the US and includes additional benefits as part of a Google AI Ultra subscription. Google AI Ultra is not currently available to Google Workspace business and education customers. Learn more: https://gemini.google/subscriptions/\r\n\r\nIf you opt in to the Gemini app, it will replace your Google Assistant as the primary assistant on the phone. Some Google Assistant voice features aren't available through the Gemini app yet. You can switch back to Google Assistant in settings.\r\n\r\nReview the Gemini Apps Privacy Notice:\r\nhttps://support.google.com/gemini?p=privacy_notice",
+      "website": "https://bard.google.com/chat",
+      "estimated_users": "500,000,000+",
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.bard",
+      "confidence_score": 0.9,
+      "launch_date": "Feb 5, 2024",
+      "founder_ceo": "Google LLC",
+      "most_helpful_review": null,
+      "review_count": 64037,
+      "average_rating": 4.506075
+    },
+    {
+      "name": "Google Calendar",
+      "description": "Get the official Google Calendar app, part of Google Workspace, for your Android phone, tablet, or Wear OS device to save time and make the most of every day.\r\n\u2022 Different ways to view your calendar - Quickly switch between month, week, and day view.\r\n\u2022 Events from Gmail - Flight, hotel, concert, restaurant reservations, and more are added to your calendar automatically.\r\n\u2022 Tasks - Create, manage, and view your tasks alongside your events in Calendar.\r\n\u2022 All your calendars in one place - Google Calendar works with all calendars on your phone, including Exchange.\r\n\u2022 Never miss an event or task on the go - On Wear OS devices, Google Calendar notifies you on time and supports tiles and complications.\r\nGoogle Calendar is part of Google Workspace. With Google Workspace, you and your team can:\r\n\u2022 Schedule meetings quickly by checking coworkers availability or layering their calendars in a single view\r\n\u2022 See if meeting rooms or shared resources are free\r\n\u2022 Share calendars so people see full event details or just if you are free\r\n\u2022 Access from your laptop, tablet or phone\r\n\u2022 Publish calendars on the web\r\nLearn more about Google Workspace: https://workspace.google.com/products/calendar/\r\nFollow us for more:\r\nTwitter: https://twitter.com/googleworkspace\r\nLinkedin: https://www.linkedin.com/showcase/googleworkspace\r\nFacebook: https://www.facebook.com/googleworkspace/",
+      "website": "http://support.google.com/calendar?p=mobilesync",
+      "estimated_users": "5,000,000,000+",
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.calendar",
+      "confidence_score": 0.9,
+      "launch_date": "Oct 17, 2012",
+      "founder_ceo": "Google LLC",
+      "most_helpful_review": null,
+      "review_count": 94367,
+      "average_rating": 4.555665
+    },
+    {
+      "name": "Google Keep - Notes and lists",
+      "description": "Quickly capture what\u2019s on your mind and get a reminder later at the right place or time. Speak a voice memo on the go and have it automatically transcribed. Grab a photo of a poster, receipt or document and easily organize or find it later in search. Google Keep makes it easy to capture a thought or list for yourself, and share it with friends and family.\r\n\r\nCapture what\u2019s on your mind\r\n\u2022 Add notes, lists and photos to Google Keep. Pressed for time? Record a voice memo and Keep will transcribe it so you can find it later.\r\n\u2022 Take advantage of widgets on your phone and tablet and add tiles and complications to your Wear OS device to quickly capture your thoughts.\r\nShare ideas with friends and family\r\n\u2022 Easily plan that surprise party by sharing your Keep notes with others and collaborating on them in real time.\r\nFind what you need, fast\r\n\u2022 Color and add labels to notes to quickly organize and get on with your life. If you need to find something you saved, a simple search will turn it up.\r\n\u2022 Pin notes to your phone or tablet homescreen with widgets and add shortcuts to your notes with tiles on a Wear OS device.\r\nAlways within reach\r\n\u2022 Keep works on your phone, tablet, computer and Wear OS device. Everything you add syncs across all of your devices so your thoughts are always with you.\r\nThe right note at the right time\r\n\u2022 Need to remember to pick up some groceries? Set a location-based reminder to pull up your grocery list right when you get to the store.\r\nAvailable everywhere\r\n\u2022 Try Google Keep on the web at http://keep.google.com and find it in the Chrome Web Store at http://g.co/keepinchrome.",
+      "website": "https://support.google.com/?p=notes_main",
+      "estimated_users": "1,000,000,000+",
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.keep",
+      "confidence_score": 0.9,
+      "launch_date": "Mar 20, 2013",
+      "founder_ceo": "Google LLC",
+      "most_helpful_review": null,
+      "review_count": 54776,
+      "average_rating": 4.751782
+    },
+    {
+      "name": "Boosted Time Tracker",
+      "description": "Achieve more by improving your productivity with the Boosted - Productivity & Time Tracker app.  Understand your habits with insightful reports and improve your productivity and time management with various productivity tools like the Pomodoro timer and simple time tracking.\r\n\r\n<b>Understanding is the first step to progress</b>\r\nImproving your habits is the shortest path to self-improvement. The most effective way to do this is to understand them first. By tracking your time, you'll be able to understand your current habits and you'll be able to use this knowledge to build better ones.\r\n\r\n<b>Time tracking should be as effortless as possible</b>\r\nTo spend the day effectively, you need to invest your time wisely. By using the productivity and time management tools in Boosted, you can make better use of your time.\r\n\r\nWe are constantly striving to make Boosted as simple as possible so that it works for you and not the other way around. Effortless time tracking - that's our goal.\r\n\r\n<b>Let's start the change</b>\r\nWe want to help you reach your goals and we believe Boosted is a great tool for that. That's why we are constantly improving the app so you can have an awesome experience on your journey of self-improvement.\r\n\r\nHere are some of the key features that Boosted gives you:\r\n<span>\u2605</span> Single click time tracking for all of your activities\r\n<span>\u2605</span> Stay <span>organized</span> by splitting your projects into smaller tasks\r\n<span>\u2605</span> Pomodoro timer, countdown timer, and many other productivity tools\r\n<span>\u2605</span> Export your data to CSV\r\n<span>\u2605</span> Control your time tracking quickly from the notification bar\r\n<span>\u2605</span> Keep your data safe with Google Drive backups\r\n<span>\u2605</span> View detailed reports and statistics of all your tracked time\r\n<span>\u2605</span> View all of your tracked activities in a calendar\r\n<span>\u2605</span> Stay productive even at night with the Dark mode\r\n<span>\u2605</span> No ads - stay focused without unnecessary distractions\r\n\r\n\r\n<b>We value your privacy.</b>\r\nBoosted doesn't store any of your personal data on our servers. All the time tracking data is stored on your phone.\r\n\r\nYou can optionally backup your data to a private folder in your Google Drive. These backups will only be accessible by the Boosted app.\r\n\r\nYou can also export your data to a CSV file and you will have full control over where that will be stored.\r\n\r\n<b>We love feedback!</b>\r\nYou can always contact us at app.boosted@gmail.com if you have any questions or if you want something new in the app. We listen to all the feedback we get from you because we want to create an app that fits your needs!\r\n\r\n\r\n<b>Take control of your time by installing Boosted for FREE!</b>",
+      "website": "https://www.boostedproductivity.com",
+      "estimated_users": "1,000,000+",
+      "estimated_revenue": null,
+      "pricing_model": "Freemium",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.boostedproductivity.app",
+      "confidence_score": 0.9,
+      "launch_date": "Dec 10, 2018",
+      "founder_ceo": "Boosted Productivity",
+      "most_helpful_review": null,
+      "review_count": 1077,
+      "average_rating": 4.5413795
+    },
+    {
+      "name": "Todoist: Planner & Calendar",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.todoist",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Doist Inc.",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.5876465
+    },
+    {
+      "name": "Forest: Focus for Productivity",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=cc.forestapp",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Seekrtech",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.497147
+    },
+    {
+      "name": "Microsoft 365 Copilot",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.microsoft.office.officehubrow",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Microsoft Corporation",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.637363
+    },
+    {
+      "name": "Notion: Notes, Tasks, AI",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=notion.id",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Notion Labs, Inc.",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.7158294
+    },
+    {
+      "name": "Google Tasks",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.tasks",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Google LLC",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.611699
+    },
+    {
+      "name": "Google Docs",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.docs.editors.docs",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Google LLC",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.181208
+    },
+    {
+      "name": "Adobe Acrobat Reader: Edit PDF",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.adobe.reader",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Adobe",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.508661
+    },
+    {
+      "name": "Google Drive",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.docs",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Google LLC",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.3026876
+    },
+    {
+      "name": "Manus AI",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=tech.butterfly.app",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "BUTTERFLY EFFECT PTE. LTD.",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.6878505
+    },
+    {
+      "name": "Microsoft Word: Edit Documents",
+      "description": null,
+      "website": null,
+      "estimated_users": null,
+      "estimated_revenue": null,
+      "pricing_model": "Free",
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.microsoft.office.word",
+      "confidence_score": 0.8,
+      "launch_date": null,
+      "founder_ceo": "Microsoft Corporation",
+      "most_helpful_review": null,
+      "review_count": null,
+      "average_rating": 4.7697167
+    }
+  ],
+  "feedback": [
+    {
+      "text": "Dictation change sucks I can't review my dictations anymore before it sends. it doesn't get everything right, some words are totally wrong, and then the response is based on the incorrect dictation. BIG waste of my time. I've sent feedback several times, but nothing has been done. As much as I love the app, I had to delete my 5 star review from last year and post this one instead. Please revert the tool so we can stop the recording and check that it's correct before sending! CGPT+ MEMBER",
+      "sentiment": null,
+      "sentiment_score": 1,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.openai.chatgpt",
+      "author_info": {
+        "app_name": "ChatGPT",
+        "app_id": "com.openai.chatgpt",
+        "reviewer": "Space Lady",
+        "review_date": "2025-07-14 09:56:37",
+        "thumbs_up": 97
+      }
+    },
+    {
+      "text": "So long as you don't use GPT-4o it's gotten better. 4.1 is still kind of a brown nose. It's that up vote system. the easiest way for your AI to win it us just to agree all the time based on the parameters you set. I remember when 4.5 first came out, I was blown away by some of the writing and accuracy and its ability to see context. but then within gosh, like a month it just collapsed. I don't like your system. but at least the reasoning models are... usable. also long convos crash sometimes.",
+      "sentiment": null,
+      "sentiment_score": 4,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.openai.chatgpt",
+      "author_info": {
+        "app_name": "ChatGPT",
+        "app_id": "com.openai.chatgpt",
+        "reviewer": "Otto Kreml",
+        "review_date": "2025-07-10 01:45:04",
+        "thumbs_up": 1589
+      }
+    },
+    {
+      "text": "Issue solved...? Great app! I use it almost every day, I love doing roleplays with my stories I'm writing and it gives me some lines that I find awesome and I want to add to my books. i also liked how it was able to give me resources for a couple things I was wanting to look up. One struggle: Math equation creations. It's GREAT at solving math, giving you a step-by-step guide so you know how to do it yourself. But when you ask it to create a math equation with a SPECIFIC style, it struggles.",
+      "sentiment": null,
+      "sentiment_score": 5,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.openai.chatgpt",
+      "author_info": {
+        "app_name": "ChatGPT",
+        "app_id": "com.openai.chatgpt",
+        "reviewer": "Serena Markham",
+        "review_date": "2025-05-30 17:09:55",
+        "thumbs_up": 8682
+      }
+    },
+    {
+      "text": "Read reviews. Inaccurate Info and frustratingly repetitive. Even when you learn how to better communicate with it for desired purposes. Subscription lets you pay to test and \"teach\" their app. It's not AI at all. It's not well informed. It's not particularly Intelligent. When you cancel Your subscription you don't even get the full month of upgraded experience. Terrible app. Poorly Designed. This is definitely not the future, lol. Don't waste your $ on this. I want a Refund!",
+      "sentiment": null,
+      "sentiment_score": 1,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.openai.chatgpt",
+      "author_info": {
+        "app_name": "ChatGPT",
+        "app_id": "com.openai.chatgpt",
+        "reviewer": "Josh Biddly",
+        "review_date": "2025-05-24 21:05:33",
+        "thumbs_up": 1013
+      }
+    },
+    {
+      "text": "voice functionality is trash on the app. it used to work great until a couple of updates back. now I get a generic error message and lose the ability to send any sort of reply after a failed attempt to use the speech-to-text function until I fully close and restart the app. meanwhile, actual voice chat just sits there listening infinitely without responding at all. also, bring back Monday.",
+      "sentiment": null,
+      "sentiment_score": 1,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.openai.chatgpt",
+      "author_info": {
+        "app_name": "ChatGPT",
+        "app_id": "com.openai.chatgpt",
+        "reviewer": "Joshua Callahan",
+        "review_date": "2025-05-20 05:27:07",
+        "thumbs_up": 1190
+      }
+    },
+    {
+      "text": "I signed up for the AI trial and Google placed it under my Google One app. I've wasted hours trying to cancel the AI trial, but doing so will also unsubscribe me from my storage in Google One. I can't find a usable way to get help. When I try, most of the pop up is off of my screen. My display setting is for 100%. Extremely wasteful of my time and very frustrating!",
+      "sentiment": null,
+      "sentiment_score": 1,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.bard",
+      "author_info": {
+        "app_name": "Google Gemini",
+        "app_id": "com.google.android.apps.bard",
+        "reviewer": "Linda",
+        "review_date": "2025-07-14 15:10:49",
+        "thumbs_up": 33
+      }
+    },
+    {
+      "text": "The majority of my experience with Gemini is all right. Useful as a search agent, object identifier, and thought organizer primarily. Also boasts creative features but I do not use them, as no large language model has made the effort to source its baseline knowledge ethically. Meant to supplant or replace google assistant but utterly fails, as it lacks the capability to do most phone functions when told to. Sometimes funny, needs improvement. Needs to listen longer before speaking.",
+      "sentiment": null,
+      "sentiment_score": 3,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.bard",
+      "author_info": {
+        "app_name": "Google Gemini",
+        "app_id": "com.google.android.apps.bard",
+        "reviewer": "Jack McCreery",
+        "review_date": "2025-07-09 08:49:38",
+        "thumbs_up": 51
+      }
+    },
+    {
+      "text": "It's interesting. This app, the more I use it, I hate it. And it's not necessarily the AI, which is terrible, by the way. But the app itself is god-awful. And each excessive update brings new features that make it even worse. Like now, I cannot use speech to text to input a prompt anymore without having to hear the AI continuously talking back to me. I pause it or stop the prompt. It stops but starts talking again when I tap mic for stt.",
+      "sentiment": null,
+      "sentiment_score": 2,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.bard",
+      "author_info": {
+        "app_name": "Google Gemini",
+        "app_id": "com.google.android.apps.bard",
+        "reviewer": "Henry DeShazo",
+        "review_date": "2025-06-30 00:11:08",
+        "thumbs_up": 403
+      }
+    },
+    {
+      "text": "The app itself is glitching lately; it's been skipping to a new chat and forgetting everything. Sometimes I can tell it to remember what we were just talking about, and it will get back to the subject. Other times, the chat is completely gone, and there is no memory of the chat left in the list. Reaction times have gone from normal response times to wondering if my phone is frozen in the last few weeks. There are times I almost reached a conclusion, but I can't get any further due to glitches.",
+      "sentiment": null,
+      "sentiment_score": 2,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.bard",
+      "author_info": {
+        "app_name": "Google Gemini",
+        "app_id": "com.google.android.apps.bard",
+        "reviewer": "Forrest",
+        "review_date": "2025-06-22 13:50:51",
+        "thumbs_up": 282
+      }
+    },
+    {
+      "text": "Overall it's a pretty good alternative to the Google Assistant. I didn't switch over until recently, because too many Assistant functions hadn't been ported over yet. My one major complaint is that seemingly no part of the Gemini Assistant is stored on the device. It would be nice if the basic utilities, like setting a timer, didn't require Internet. (why do I have 256 gb anyway?) My Internet is spotty at times, and it'd be nice if that didn't completely cripple the assistant for basic function",
+      "sentiment": null,
+      "sentiment_score": 4,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.apps.bard",
+      "author_info": {
+        "app_name": "Google Gemini",
+        "app_id": "com.google.android.apps.bard",
+        "reviewer": "Alex Morganti",
+        "review_date": "2025-06-24 00:26:07",
+        "thumbs_up": 1373
+      }
+    },
+    {
+      "text": "Functional, but lacking in so many ways. It should be able to connect with contacts, so, for instance, if you want to add a phone number of who you're meeting to your calendar so you can easily contact them if you need to reschedule or tell them you've arrived or are running late, etc. Scheduling duplicate appointments is dysfunctional. You should be able to copy an appointment, and then look at your calendar, find a date and time that works, and paste it on that date and time.",
+      "sentiment": null,
+      "sentiment_score": 2,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.calendar",
+      "author_info": {
+        "app_name": "Google Calendar",
+        "app_id": "com.google.android.calendar",
+        "reviewer": "Loves BlueSkies",
+        "review_date": "2025-03-06 01:43:48",
+        "thumbs_up": 285
+      }
+    },
+    {
+      "text": "It is very easy to use and looks wonderful. Unfortunately, the search feature is useless. It searches forward but not backward. I often need to find the last time I did something but if it's more than 2 weeks ago no result. Instructions were sent in reply on the searching which show my review is accurate. Google tells me I need to use the web app my computer. Or, pro tip here, you can uninstall Google Calendar on your phone and install the app called Business Calendar. That one just works.",
+      "sentiment": null,
+      "sentiment_score": 3,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.calendar",
+      "author_info": {
+        "app_name": "Google Calendar",
+        "app_id": "com.google.android.calendar",
+        "reviewer": "TD Garber",
+        "review_date": "2025-07-04 03:47:09",
+        "thumbs_up": 6
+      }
+    },
+    {
+      "text": "Calendar works fine. My major gripe is with Google. When using an Android phone, & there's an update, I want a little bit of information as to what the update is. When you click what's new, all there is - an AI description of the app. No! Google, you need to be more forthcoming. Tell us what the actual changes and updates are to the app.",
+      "sentiment": null,
+      "sentiment_score": 3,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.calendar",
+      "author_info": {
+        "app_name": "Google Calendar",
+        "app_id": "com.google.android.calendar",
+        "reviewer": "Debi",
+        "review_date": "2025-05-10 23:42:04",
+        "thumbs_up": 35
+      }
+    },
+    {
+      "text": "This app has made my life much more organized. However, I work graveyard shift 7pm-7am and sleep during the day, so I wish there was a way to have the notification act as an alarm. Like instead of hearing a single notification sound, it would continuously sound off until you selected \"event acknowledged\" or something like that. I have missed important events and meetings because I put it in my calendar but I forgot to also set an alarm...seems silly that I have to set both to notify/wake me up.",
+      "sentiment": null,
+      "sentiment_score": 3,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.calendar",
+      "author_info": {
+        "app_name": "Google Calendar",
+        "app_id": "com.google.android.calendar",
+        "reviewer": "Travis Trickett",
+        "review_date": "2025-07-02 08:18:40",
+        "thumbs_up": 5
+      }
+    },
+    {
+      "text": "My events don't show up they way they are suppose to unless I force stop the app. When I change the the extended time from 4 to 5 to 4 to 6, it remains as 4 to 5 even though I changed it otherwise. Also, Google doesn't bother fixing these bugs, they just sent a bot reply with vague instructions on how to fix it on your own (they do not work by the way).",
+      "sentiment": null,
+      "sentiment_score": 1,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.google.android.calendar",
+      "author_info": {
+        "app_name": "Google Calendar",
+        "app_id": "com.google.android.calendar",
+        "reviewer": "Chu \u201cThe Chu\u201d McClintock",
+        "review_date": "2025-06-29 06:36:58",
+        "thumbs_up": 58
+      }
+    },
+    {
+      "text": "Easy to use. There are all kinds of ways to organize your to do list. o like that I was able to set it up using the GTD method. I also like that Google calendar can be integrated and accessed through the app. A couple of frustrations...I had to try multiple times to set the due date and time for routine tasks. I also wish whole sections along with associated tasks could be moved to another project. I also wish you could pick multiple labels when creating a task instead of having to edit it later",
+      "sentiment": null,
+      "sentiment_score": 5,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.todoist",
+      "author_info": {
+        "app_name": "Todoist: Planner & Calendar",
+        "app_id": "com.todoist",
+        "reviewer": "Kimberly Wolfe",
+        "review_date": "2024-11-13 20:57:28",
+        "thumbs_up": 185
+      }
+    },
+    {
+      "text": "Seems OK at creating shopping lists. But there are two massive failures: * reminders are weak. Once daily in a crowded notification panel is not a reminder. I want full screen \"do this now\", but that's not an option - despite explicity getting permissions to do exactly that. * reoccurring tasks are not reliable. Our cat gets insulin 2x a day. I bought the \"pro\" plan for two people so we don't duplicate doses, but the tasks just dissappeared after a couple days not marking it done. \ud83e\udd26\u200d\u2642\ufe0f",
+      "sentiment": null,
+      "sentiment_score": 2,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.todoist",
+      "author_info": {
+        "app_name": "Todoist: Planner & Calendar",
+        "app_id": "com.todoist",
+        "reviewer": "Danny Sauer",
+        "review_date": "2024-09-22 22:14:26",
+        "thumbs_up": 38
+      }
+    },
+    {
+      "text": "This is the first thing that my adhd brain has stuck to using for more than a week, simple and clean, but customizable! Tho I wish the widget takes up less screen space, I can't fit multiple projects on one screen for a comprehensive at a glance without going into the app and clicking around... But Ig that's a me problem with a small old phone haha! (Developers if you can hear me, pls consider 2x3 widget...)",
+      "sentiment": null,
+      "sentiment_score": 4,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.todoist",
+      "author_info": {
+        "app_name": "Todoist: Planner & Calendar",
+        "app_id": "com.todoist",
+        "reviewer": "Vi Le",
+        "review_date": "2025-07-16 14:40:49",
+        "thumbs_up": 7
+      }
+    },
+    {
+      "text": "I've been using this app for a long time now, and had an issue where the widget crashed and wouldn't manually add back to my screen when clicking add. Update: I contacted the Todoist team and they assisted me in resolving my issue very quickly. If anyone encounters this issue, try holding the widget to add it to the screen as it seems like an issue where clicking the add button won't add the widget. Thanks again for helping me get the widget back, this app is great.",
+      "sentiment": null,
+      "sentiment_score": 5,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.todoist",
+      "author_info": {
+        "app_name": "Todoist: Planner & Calendar",
+        "app_id": "com.todoist",
+        "reviewer": "Ishaque Ramedies",
+        "review_date": "2025-07-08 18:44:59",
+        "thumbs_up": 16
+      }
+    },
+    {
+      "text": "My #1 most used app on my phone. I have been using it for the past 3 years, and I love it! Before it, I tried almost every other to-do list app, and Todoist was the winner. TickTick comes as a close second (it has some more things), but the design and functionality of Todoist are unbeatable. From grocery lists to watchlists and, of course most importantly, everyday to-dos, this app is truly essential. I believe everyone should have it on their phones.",
+      "sentiment": null,
+      "sentiment_score": 5,
+      "source": "Google Play Store",
+      "source_url": "https://play.google.com/store/apps/details?id=com.todoist",
+      "author_info": {
+        "app_name": "Todoist: Planner & Calendar",
+        "app_id": "com.todoist",
+        "reviewer": "Chris Filippidis",
+        "review_date": "2025-07-11 12:07:35",
+        "thumbs_up": 6
+      }
+    }
+  ],
+  "metadata": {
+    "keywords_searched": [
+      "productivity",
+      "productivity business",
+      "productivity app"
+    ],
+    "search_queries": [
+      "productivity",
+      "productivity business",
+      "productivity app",
+      "productivity mobile"
+    ],
+    "successful_queries": 3,
+    "failed_queries": 0,
+    "apps_found": 54,
+    "reviews_extracted": 45,
+    "api_calls_made": 3,
+    "source": "Google Play Store",
+    "scraping_method": "google-play-scraper-api",
+    "total_competitors": 31,
+    "total_feedback": 40,
+    "success_rate": 0.75
+  },
+  "scraper_config": {
+    "max_results_per_query": 20,
+    "delay_range": [
+      1,
+      3
+    ],
+    "max_queries": 3,
+    "api_based": true
+  }
+}

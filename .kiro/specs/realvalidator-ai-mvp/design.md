@@ -2,11 +2,11 @@
 
 ## Overview
 
-launch-lens AI is architected as a modern full-stack SaaS idea validation platform using Next.js 14 with App Router for the frontend, Supabase for authentication and database, and FastAPI with Python for the scraping and AI analysis backend. The system follows a microservices approach where the frontend handles user interactions and data presentation, while the backend manages intensive scraping operations and AI processing asynchronously.
+launch-lens AI is architected as a modern full-stack SaaS idea validation platform using Next.js 14 with App Router for the frontend, Supabase for authentication and database, and FastAPI for backend scraping and AI analysis. The system follows a streamlined approach where the frontend handles user interactions and data presentation, while the FastAPI backend manages scraping operations and AI processing asynchronously.
 
-The platform combines automated headless browser scraping using Patchright from multiple distinct sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search, Google Play Store, Apple App Store, Microsoft Store) with Google AI Studio's Gemini model to provide comprehensive validation reports. These reports include market opportunity analysis, competitive landscape assessment, user feedback sentiment analysis, and 8 specific strategic recommendations including MVP features, pricing strategies, and go-to-market approaches, all culminating in calculated market scores (1-10 scale).
+The platform combines automated API-based scraping and headless browser scraping using Patchright from multiple sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search) with Google AI Studio's Gemini model to provide comprehensive validation reports. These reports include market opportunity analysis, competitive landscape assessment, user feedback sentiment analysis, and exactly 8 strategic recommendations with calculated market scores (1-10 scale).
 
-The architecture prioritizes type safety through tRPC, real-time updates via Supabase subscriptions, scalable background processing for data collection and analysis, and data export capabilities in CSV and JSON formats. The design ensures data security through Row Level Security (RLS) policies, maintains separation of concerns between user-facing operations and data processing workflows, and provides responsive mobile-optimized user experiences with comprehensive error handling and recovery mechanisms.
+The architecture prioritizes performance through asynchronous processing, type safety through tRPC, real-time updates via Supabase subscriptions, scalable background processing for data collection and analysis, and comprehensive data export capabilities in CSV and JSON formats. The design ensures data security through Row Level Security (RLS) policies, maintains separation of concerns between user-facing operations and backend processing, and provides responsive mobile-optimized user experiences with comprehensive error handling and recovery mechanisms.
 
 ## Architecture
 
@@ -21,33 +21,39 @@ graph TB
         A --> E[Export Interface]
     end
     
-    subgraph "Backend Services"
+    subgraph "FastAPI Backend"
         F[tRPC Server] --> G[Supabase Database]
         H[FastAPI Service] --> G
-        H --> I[Headless Browser Pool]
+        H --> I[Scraping Orchestrator]
         H --> J[AI Service]
         H --> K[Export Service]
+        I --> L[Product Hunt Scraper]
+        I --> M[Reddit Scraper]
+        I --> N[Google Search Scraper]
+        I --> O[Social Media Scrapers]
     end
     
     subgraph "Browser Infrastructure"
-        I --> L[Patchright Browsers]
-        L --> M[Google Search]
-        L --> N[Social Media Platforms]
-        L --> O[App Stores]
+        N --> P1[Patchright Browser Pool]
+        O --> P2[Patchright Browser Pool]
+    end
+    
+    subgraph "Data Sources"
+        L --> S1[Product Hunt API]
+        M --> S2[Reddit API]
+        N --> S3[Google Search Results]
+        O --> S4[Facebook<br/>Twitter<br/>Instagram]
     end
     
     subgraph "External Services"
-        P[Google AI Studio]
-        Q[Product Hunt API]
-        R[Reddit API]
+        J --> T[Google AI Studio]
+        P1 --> U[Proxy Services]
+        P2 --> U
     end
     
     C --> G
     D --> G
     F --> H
-    I --> Q
-    I --> R
-    J --> P
     K --> G
     E --> K
     
@@ -55,6 +61,8 @@ graph TB
     style H fill:#f3e5f5
     style G fill:#e8f5e8
     style I fill:#fff3e0
+    style N fill:#ff9800,color:#ffffff
+    style O fill:#9c27b0,color:#ffffff
 ```
 
 ### Data Flow
@@ -62,91 +70,130 @@ graph TB
 1. **User Authentication**: User creates account and authenticates via Supabase Auth
 2. **Validation Creation**: User submits validation request (title and idea description) through Next.js frontend
 3. **Request Processing**: tRPC server validates input constraints and creates validation record in Supabase with "processing" status
-4. **Background Trigger**: tRPC server triggers FastAPI scraping service asynchronously
-5. **Browser Pool Management**: FastAPI allocates headless browser instances from managed pool
-6. **Data Collection**: FastAPI orchestrates parallel scraping using Patchright browsers with stealth measures and error handling
-7. **Data Storage**: Scraped competitors and feedback stored in Supabase with proper data cleaning
-8. **AI Analysis**: Gemini AI processes scraped data to generate comprehensive market analysis
-9. **Market Scoring**: System calculates market score (1-10) based on competition and sentiment analysis
-10. **Completion**: Validation status updated to "completed" with all analysis results
-11. **Real-time Updates**: Frontend receives real-time updates via Supabase subscriptions
-12. **Results Display**: User views comprehensive validation results through responsive interface
-13. **Data Export**: User can export validation data in CSV or JSON format
+4. **Parallel Job Distribution**: FastAPI creates parallel scraping jobs and dispatches to Redis queues
+5. **API-Based Collection**: FastAPI directly handles Product Hunt API and Reddit API scraping
+6. **Browser-Based Collection**: FastAPI orchestrates Patchright browser automation for Google Search and social media platforms
+7. **Data Aggregation**: All scraping results converge to central processing pipeline
+8. **Data Storage**: Scraped competitors and user feedback stored in Supabase with source attribution
+9. **AI Analysis**: Gemini AI processes aggregated data to generate comprehensive market analysis
+10. **Market Scoring**: System calculates market score (1-10) based on competition density and user sentiment
+11. **Completion**: Validation status updated to "completed" with all analysis results
+12. **Real-time Updates**: Frontend receives real-time updates via Supabase subscriptions
+13. **Results Display**: User views comprehensive validation results through responsive interface
+14. **Data Export**: User can export validation data in CSV or JSON format with full user feedback analysis
 
 ## Components and Interfaces
 
-### Backend Components (FastAPI)
+### FastAPI Backend Components
 
-#### Headless Browser Infrastructure
-- **HeadlessBrowserService**: Manages Patchright browser pool with session lifecycle and resource cleanup
-- **BrowserPool**: Maintains pool of browser instances for concurrent scraping operations
-- **StealthManager**: Implements anti-detection measures including user agent rotation, human-like behavior simulation, and captcha handling
-- **SessionManager**: Handles browser session management, cookie persistence, and proxy rotation
-
-#### Scraping Architecture
-- **ScrapingService**: Orchestrates parallel scraping from all sources with browser pool allocation and error handling
-- **BaseScraper**: Abstract base class defining scraper interface with standardized headless browser methods
+#### Core Scraping Components
+- **ScrapingOrchestrator**: Manages the complete scraping workflow from validation creation to completion
 - **ProductHuntScraper**: 
-  - Uses Product Hunt API for structured data extraction
-  - Handles rate limiting and API authentication
-  - Parses competitor information including users, revenue, and pricing models
-- **Headless Browser Scrapers**: 
-  - GoogleSearchScraper: Uses Patchright for stealth Google search with dynamic content handling and captcha detection
-  - FacebookScraper: Scrapes public groups and pages using headless browser with social platform anti-bot evasion
-  - TwitterScraper: Extracts tweets and sentiment analysis using browser automation with rate limiting
-  - InstagramScraper: Hashtag and content analysis using headless browser with Instagram-specific stealth measures
-  - GooglePlayStoreScraper: Android app data extraction using browser automation
-  - AppStoreScraper: iOS app data extraction using browser automation  
-  - MicrosoftStoreScraper: Windows app data extraction using browser automation
-- **API-Based Scrapers**:
-  - RedditScraper: Uses Reddit API (PRAW) for structured data access with fallback to browser scraping
+  - Uses Product Hunt API for structured competitor data
+  - Extracts product metrics, user counts, and pricing information
+  - Handles API rate limiting and authentication
+- **RedditScraper**: 
+  - Uses Reddit API (PRAW) for structured discussion data
+  - Searches relevant subreddits for keyword-related discussions
+  - Extracts user sentiment and pain points from comments
 
-#### AI and Analysis
+#### Headless Browser Components
+- **GoogleSearchScraper**: Uses Patchright for stealth Google search result extraction with anti-detection measures
+- **SocialMediaScrapers**: 
+  - FacebookScraper for public groups and pages using headless browser automation
+  - TwitterScraper for tweet sentiment and trend analysis with stealth measures
+  - InstagramScraper for hashtag and content analysis using browser automation
+- **HeadlessBrowserService**: Manages Patchright browser pool with session lifecycle and resource cleanup
+- **StealthManager**: Implements anti-detection measures across all browser scrapers
+
+#### Core Processing Components
+- **ValidationOrchestrator**: Manages the complete validation workflow from creation to completion
+- **DataAggregator**: Collects and combines results from all scrapers
+- **ProgressTracker**: Tracks real-time progress across all scraping operations
+- **ErrorHandler**: Manages scraping failures and continues with available sources
+
+### AI and Analysis Components
 - **AIService**: Integrates with Google AI Studio Gemini model for comprehensive analysis generation
-- **AnalysisEngine**: Processes scraped data for market scoring and insight generation
-- **SentimentAnalyzer**: Enhanced sentiment analysis with confidence scoring and context awareness
+- **MarketOpportunityAnalyzer**: Generates market opportunity analysis based on scraped data
+- **CompetitiveAnalyzer**: Provides competitive landscape assessment with specific insights
+- **StrategicRecommendationGenerator**: Creates exactly 8 strategic recommendations including MVP features, pricing, and GTM strategy
+- **RiskAssessmentAnalyzer**: Identifies potential challenges and mitigation strategies
+- **MarketScoreCalculator**: Calculates market score (1-10) based on competition density and sentiment
 
-#### Data Management and Export
+### Data Management and Export
 - **SupabaseService**: Database operations and validation status management
-- **DataCleaner**: Deduplication and data quality processing with enhanced validation
-- **ExportService**: Generates CSV and JSON exports with proper formatting and authentication
-- **FileGenerator**: Creates downloadable files with structured data and metadata
+- **DataCleaner**: Deduplication and data quality processing with source attribution
+- **ExportService**: Generates CSV and JSON exports as specified in requirements
+- **FileGenerator**: Creates downloadable files with descriptive filenames including validation title and export date
 
 ### API Interfaces
 
 #### FastAPI Endpoints
 ```python
-# Scraping Operations
-POST /api/process-validation    # Trigger validation processing
-GET /health                     # Health check endpoint
+# Orchestration Operations
+POST /api/process-validation           # Trigger validation processing
+GET /api/validation/{id}/progress      # Get real-time progress
+POST /api/validation/{id}/retry        # Retry failed validation
 
 # Export Operations
-GET /api/export/csv/{validation_id}     # Generate CSV export
-GET /api/export/json/{validation_id}    # Generate JSON export
+GET /api/export/csv/{validation_id}    # Generate CSV export with competitor data
+GET /api/export/json/{validation_id}   # Generate JSON export with complete data
 
 # Background Tasks
-process_validation()            # Async validation processing with browser pool
-calculate_market_score()        # Market score calculation
-cleanup_browser_sessions()      # Browser resource cleanup
+process_validation()                   # Complete validation processing
+aggregate_scraping_results()          # Combine results from all sources
+analyze_with_ai()                     # Process data with Gemini AI
+cleanup_browser_sessions()            # Browser resource cleanup
 ```
 
 #### tRPC Procedures
 ```typescript
 // Authentication
-auth.login()                    # User authentication
-auth.signup()                   # User registration
-auth.logout()                   # Session termination
+auth.login()                           # User authentication
+auth.signup()                          # User registration
+auth.logout()                          # Session termination
 
 // Validations
-validations.create()            # Create new validation
-validations.getAll()            # Get user's validations
-validations.getById()           # Get specific validation
-validations.updateStatus()      # Update validation status
+validations.create()                   # Create new validation with parallel processing
+validations.getAll()                   # Get user's validations with progress indicators
+validations.getById()                  # Get specific validation with user feedback analysis
+validations.getProgress()              # Get real-time progress
+validations.retry()                    # Retry failed validation components
 
 // Export Operations
-export.generateCSV()            # Trigger CSV export generation
-export.generateJSON()           # Trigger JSON export generation
-export.getExportStatus()        # Check export generation status
+export.generateCSV()                   # Trigger CSV export with user sentiment data
+export.generateJSON()                  # Trigger JSON export with complete analysis
+export.getExportStatus()               # Check export generation status
+```
+// Worker Communication (Redis/HTTP)
+POST /worker/google-search/scrape      // Google search scraping job
+POST /worker/app-stores/scrape         // App store scraping job  
+POST /worker/review-sites/scrape       // Review sites scraping job
+POST /worker/reddit-discussions/scrape // Reddit discussions scraping job
+
+// Worker Status
+GET /worker/{type}/health              // Individual worker health check
+GET /worker/{type}/metrics             // Worker performance metrics
+```
+
+#### tRPC Procedures
+```typescript
+// Authentication
+auth.login()                           # User authentication
+auth.signup()                          # User registration
+auth.logout()                          # Session termination
+
+// Validations
+validations.create()                   # Create new validation with parallel processing
+validations.getAll()                   # Get user's validations with progress indicators
+validations.getById()                  # Get specific validation with user feedback analysis
+validations.getProgress()              # Get real-time worker progress
+validations.retry()                    # Retry failed validation components
+
+// Export Operations
+export.generateCSV()                   # Trigger CSV export with user sentiment data
+export.generateJSON()                  # Trigger JSON export with complete analysis
+export.getExportStatus()               # Check export generation status
 ```
 
 ## Data Models
@@ -163,7 +210,6 @@ validations {
   idea_text: TEXT (10-1000 chars)
   status: TEXT ('processing'|'completed'|'failed')
   market_score: INTEGER (1-10)
-  scraping_metadata: JSONB
   created_at: TIMESTAMP
   updated_at: TIMESTAMP
 }
@@ -178,7 +224,7 @@ competitors {
   estimated_users: INTEGER
   estimated_revenue: TEXT
   pricing_model: TEXT
-  source: TEXT
+  source: TEXT ('product_hunt'|'google_search'|'reddit'|'facebook'|'twitter'|'instagram')
   source_url: TEXT
   confidence_score: DECIMAL(3,2)
   scraping_method: TEXT ('api'|'browser')
@@ -186,13 +232,13 @@ competitors {
 }
 
 -- User feedback and sentiment
-feedback {
+user_feedback {
   id: UUID (PK)
   validation_id: UUID (FK)
-  text: TEXT
+  feedback_text: TEXT
   sentiment: TEXT ('positive'|'negative'|'neutral')
   sentiment_score: DECIMAL(3,2)
-  source: TEXT
+  source: TEXT ('reddit'|'facebook'|'twitter'|'instagram')
   source_url: TEXT
   author_info: JSONB
   scraping_method: TEXT ('api'|'browser')
@@ -205,7 +251,7 @@ ai_analysis {
   validation_id: UUID (FK)
   market_opportunity: TEXT
   competitive_analysis: TEXT
-  strategic_recommendations: TEXT
+  strategic_recommendations: TEXT -- Exactly 8 recommendations
   risk_assessment: TEXT
   gtm_strategy: TEXT
   feature_priorities: TEXT
@@ -227,13 +273,119 @@ exports {
 
 ### TypeScript Interfaces
 
-#### Frontend Data Types
+#### Data Types
 ```typescript
 interface Validation {
   id: string;
   userId: string;
   title: string;
   ideaText: string;
+  status: 'processing' | 'completed' | 'failed';
+  marketScore?: number;
+  scrapingMetadata?: {
+    sourcesScraped: string[];
+    browserSessionsUsed: number;
+    successRate: number;
+    processingTime: number;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface Competitor {
+  id: string;
+  validationId: string;
+  name: string;
+  description?: string;
+  website?: string;
+  estimatedUsers?: number;
+  estimatedRevenue?: string;
+  pricingModel?: string;
+  source: 'product_hunt' | 'google_search' | 'reddit' | 'facebook' | 'twitter' | 'instagram';
+  sourceUrl?: string;
+  confidenceScore: number;
+  scrapingMethod: 'api' | 'browser';
+  createdAt: string;
+}
+
+interface Feedback {
+  id: string;
+  validationId: string;
+  text: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  sentimentScore: number;
+  source: 'reddit' | 'facebook' | 'twitter' | 'instagram';
+  sourceUrl?: string;
+  authorInfo?: any;
+  scrapingMethod: 'api' | 'browser';
+  createdAt: string;
+}
+
+interface AIAnalysis {
+  id: string;
+  validationId: string;
+  marketOpportunity: string;
+  competitiveAnalysis: string;
+  strategicRecommendations: string;
+  riskAssessment: string;
+  gtmStrategy: string;
+  featurePriorities: string;
+  executiveSummary: string;
+  createdAt: string;
+}
+
+interface ExportData {
+  id: string;
+  validationId: string;
+  userId: string;
+  exportType: 'csv' | 'json';
+  filePath: string;
+  status: 'generating' | 'completed' | 'failed';
+  createdAt: string;
+}
+```
+
+## Headless Browser Infrastructure
+
+### Browser Pool Management
+
+#### Architecture Components
+- **Browser Pool**: Maintains 3-5 concurrent Patchright browser instances for parallel scraping
+- **Session Lifecycle**: Automatic browser instance rotation every 5-10 requests to avoid detection
+- **Resource Management**: Memory monitoring and cleanup to prevent resource leaks
+- **Proxy Integration**: Residential proxy rotation for improved success rates
+
+#### Stealth Measures
+- **Patchright Configuration**: Enhanced stealth plugin configuration to avoid detection signatures
+- **Human Behavior Simulation**: Random delays (2-8 seconds), mouse movements, and scroll patterns
+- **Fingerprint Randomization**: Dynamic viewport sizes, user agents, and browser settings
+- **Captcha Handling**: Detection and logging of captcha challenges with graceful fallbacks
+
+#### Performance Optimization
+- **Intelligent Queuing**: Priority-based scraping queue with retry mechanisms
+- **Success Rate Monitoring**: Track and adapt to platform-specific success rates
+- **Fallback Strategies**: API-first approach with browser scraping as fallback when possible
+
+### Design Rationale
+The headless browser infrastructure provides reliable data extraction while maintaining stealth capabilities and respecting platform rate limits. The pool-based approach ensures efficient resource utilization while the stealth measures minimize detection risks.
+
+## Error Handling
+
+### Enhanced Error Management Strategy
+
+The system implements multi-layered error handling with specific focus on browser automation challenges:
+
+#### Orchestrator-Level Error Handling
+- **Worker Failures**: Automatic job reassignment to backup workers
+- **Partial Results**: Completion with available data when some workers fail
+- **Timeout Handling**: Maximum processing time limits with graceful degradation
+- **Data Quality**: Validation and cleanup of worker results
+
+### User Experience During Errors
+- **Real-time Updates**: Progress indicators showing which sources are processing/completed/failed
+- **Partial Results**: Display available results even if some sources fail
+- **Retry Options**: Allow users to retry failed components
+- **Transparent Communication**: Clear error messages explaining what data might be missingText: string;
   status: 'processing' | 'completed' | 'failed';
   marketScore?: number;
   scrapingMetadata?: {
@@ -334,8 +486,6 @@ The system implements multi-layered error handling with specific focus on browse
 - **Form Validation**: Real-time validation with user-friendly error messages
 - **Network Error Recovery**: Retry mechanisms for failed API calls with exponential backoff
 - **Loading States**: Clear indicators during processing with timeout handling
-- **User-Friendly Messages**: Clear error messages with recovery options for all failure scenarios
-- **Graceful Degradation**: Maintain core functionality when non-critical services fail
 
 #### Backend Error Handling
 - **Browser Session Management**: Automatic recovery from browser crashes and timeouts
@@ -381,8 +531,7 @@ Security is implemented at multiple layers including browser automation security
 - **Supabase Subscriptions**: Real-time validation status updates without polling
 - **Optimistic Updates**: Immediate UI feedback for better user experience
 - **Background Processing**: Asynchronous scraping with browser pool management prevents UI blocking
-- **Progress Tracking**: Granular progress updates during multi-source scraping with estimated completion time calculation
-- **Status Broadcasting**: Real-time status updates including current scraping phase and completion percentage
+- **Progress Tracking**: Granular progress updates during multi-source scraping
 
 #### Browser Performance Optimization
 - **Resource Monitoring**: Memory and CPU usage tracking for browser instances
@@ -413,7 +562,6 @@ The enhanced real-time architecture with browser pool management ensures users r
 - **CSV Format**: Competitor data with headers: Name, Description, Website, Estimated Users, Revenue, Pricing Model, Source, Confidence Score, Date Added
 - **JSON Format**: Complete validation data including competitors, feedback, AI analysis, and processing metadata
 - **Metadata Inclusion**: Export timestamp, validation details, and data source attribution
-- **File Naming**: Descriptive filenames including validation title and export date for easy identification
 
 #### Security and Performance
 - **Access Control**: User-specific export generation with ownership validation
@@ -436,12 +584,9 @@ The export system provides users with portable data formats for external analysi
 
 #### Analysis Components
 - **Market Opportunity**: Assess market size and potential based on enhanced competitor analysis
-- **Competitive Landscape**: Detailed competitor analysis with browser-extracted positioning insights and specific competitive insights
-- **Strategic Recommendations**: Generate exactly 8 specific strategic recommendations covering MVP features, pricing strategies, go-to-market approaches, and business model optimization
-- **Risk Assessment**: Identify potential challenges and mitigation strategies including data reliability considerations
-- **GTM Strategy**: Comprehensive go-to-market strategy recommendations based on competitive analysis
-- **Feature Prioritization**: Recommend MVP features based on comprehensive market gaps analysis and user feedback sentiment
-- **Executive Summary**: Consolidated overview combining all analysis components with key insights and market score rationale
+- **Competitive Landscape**: Detailed competitor analysis with browser-extracted positioning insights
+- **Risk Assessment**: Identify potential challenges including data reliability considerations
+- **Feature Prioritization**: Recommend MVP features based on comprehensive market gaps analysis
 
 #### Design Rationale
 The enhanced AI integration transforms browser-scraped data into actionable business insights, providing entrepreneurs with comprehensive market intelligence while accounting for data quality and source reliability.
@@ -486,3 +631,4 @@ The enhanced dashboard provides comprehensive validation management with data ex
 
 #### Design Rationale
 The enhanced testing strategy ensures reliability across all system components including browser automation and export functionality while maintaining development velocity through comprehensive automated testing pipelines.
+

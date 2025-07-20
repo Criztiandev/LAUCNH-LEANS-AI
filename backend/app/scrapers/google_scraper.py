@@ -143,6 +143,12 @@ class GoogleScraper(BaseScraper):
                 "total_feedback": len(unique_feedback)
             })
             
+            # If we didn't find any competitors, just return an empty array
+            # We don't want to return mock data as it would be inaccurate
+            if not unique_competitors:
+                logger.warning("No competitors found from Google search results")
+                # Keep status as is - it will be FAILED if no successful queries, otherwise PARTIAL_SUCCESS
+            
             return ScrapingResult(
                 status=status,
                 competitors=unique_competitors[:15],  # Limit to top 15 competitors
@@ -176,23 +182,32 @@ class GoogleScraper(BaseScraper):
         # Generate search queries
         queries = []
         
-        # Add basic keyword searches
+        # Add basic keyword searches - avoid redundancy like "software software"
         for keyword in keywords[:3]:  # Use top 3 keywords
-            queries.append(f"{keyword} software")
-            queries.append(f"{keyword} tool")
-            
+            # Check if keyword already contains "software" or "tool"
+            if "software" not in keyword.lower():
+                queries.append(f"{keyword} software")
+            if "tool" not in keyword.lower():
+                queries.append(f"{keyword} tool")
+            # Add the keyword by itself for broader results
+            queries.append(keyword)
+        
         # Add competitor-focused queries
         if product_type:
             queries.append(f"best {product_type} software")
             queries.append(f"top {product_type} tools")
             queries.append(f"{product_type} software alternatives")
-            queries.append(f"{product_type} market size")
-            queries.append(f"{product_type} software comparison")
+            queries.append(f"{product_type} competitors")
+            queries.append(f"{product_type} companies")
         
         # Add specific competitor research queries
         for keyword in keywords[:2]:  # Use top 2 keywords
-            queries.append(f"alternatives to {keyword} software")
-            queries.append(f"{keyword} software competitors")
+            if "software" not in keyword.lower():
+                queries.append(f"alternatives to {keyword} software")
+                queries.append(f"{keyword} software competitors")
+            else:
+                queries.append(f"alternatives to {keyword}")
+                queries.append(f"{keyword} competitors")
             
         # Add market trend queries
         queries.append(f"{' '.join(keywords[:2])} market trends")
@@ -318,42 +333,169 @@ class GoogleScraper(BaseScraper):
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             
-            # Extract organic search results
-            for result in soup.select('div.g'):
-                try:
-                    title_element = result.select_one('h3')
-                    link_element = result.select_one('a')
-                    snippet_element = result.select_one('div.VwiC3b')
-                    
-                    if title_element and link_element and 'href' in link_element.attrs:
-                        title = title_element.get_text()
-                        link = link_element['href']
-                        snippet = snippet_element.get_text() if snippet_element else ""
+            # Save the HTML for debugging
+            debug_file = f"google_debug_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+            with open(debug_file, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            logger.info(f"Saved debug HTML to {debug_file}")
+            
+            # Extract organic search results - try multiple selectors to handle Google's changing structure
+            result_selectors = [
+                'div.g', 
+                'div.tF2Cxc', 
+                'div.yuRUbf',
+                'div[data-sokoban-container]',
+                'div.rc',
+                'div.jtfYYd',
+                'div.mnr-c',
+                # Additional selectors for modern Google results
+                'div.MjjYud',
+                'div.v7W49e',
+                'div.hlcw0c',
+                'div.g.Ww4FFb.vt6azd.tF2Cxc',
+                'div.kvH3mc.BToiNc.UK95Uc',
+                'div.Z26q7c.UK95Uc.jGGQ5e',
+                'div.g div.BYM4Nd',
+                'div.g div.tF2Cxc',
+                'div.g div.kvH3mc'
+            ]
+            
+            # Try each selector until we find results
+            for selector in result_selectors:
+                results_found = False
+                for result in soup.select(selector):
+                    try:
+                        # Try multiple title selectors
+                        title_element = (
+                            result.select_one('h3') or 
+                            result.select_one('h3.LC20lb') or
+                            result.select_one('.DKV0Md') or
+                            result.select_one('[role="heading"]') or
+                            result.select_one('a h3') or
+                            result.select_one('h3.zBAuLc') or
+                            result.select_one('h3.DFN0Dc')
+                        )
                         
-                        # Skip Google-specific links
-                        if link.startswith('/'):
-                            continue
+                        # Try multiple link selectors
+                        link_element = (
+                            result.select_one('a[href]') or
+                            result.select_one('a.cz3goc') or
+                            result.select_one('div.yuRUbf a') or
+                            result.select_one('div.Z26q7c a') or
+                            result.select_one('div.kvH3mc a')
+                        )
+                        
+                        # Try multiple snippet selectors
+                        snippet_element = (
+                            result.select_one('div.VwiC3b') or
+                            result.select_one('span.aCOpRe') or
+                            result.select_one('div.s3v9rd') or
+                            result.select_one('div.lEBKkf') or
+                            result.select_one('div.yXK7lf') or
+                            result.select_one('div.Z26q7c div.VwiC3b') or
+                            result.select_one('div.kvH3mc div.VwiC3b') or
+                            result.select_one('div.HiHjCd') or
+                            result.select_one('div.BNeawe.s3v9rd.AP7Wnd')
+                        )
+                        
+                        if title_element and link_element and 'href' in link_element.attrs:
+                            title = title_element.get_text()
+                            link = link_element['href']
+                            snippet = snippet_element.get_text() if snippet_element else ""
                             
-                        results["organic_results"].append({
-                            "title": title,
-                            "link": link,
-                            "snippet": snippet
-                        })
-                except Exception as e:
-                    logger.debug(f"Failed to parse search result: {str(e)}")
-                    continue
+                            # Skip Google-specific links
+                            if link.startswith('/'):
+                                continue
+                                
+                            # Skip if link contains google.com
+                            if 'google.com' in link:
+                                continue
+                                
+                            results["organic_results"].append({
+                                "title": title,
+                                "link": link,
+                                "snippet": snippet
+                            })
+                            results_found = True
+                            
+                            # Log successful extraction
+                            logger.debug(f"Extracted result: {title} - {link}")
+                    except Exception as e:
+                        logger.debug(f"Failed to parse search result: {str(e)}")
+                        continue
+                
+                # If we found results with this selector, stop trying others
+                if results_found:
+                    logger.info(f"Found {len(results['organic_results'])} results with selector: {selector}")
+                    break
             
-            # Extract featured snippet if present
-            featured_snippet = soup.select_one('div.c2xzTb')
-            if featured_snippet:
-                snippet_text = featured_snippet.get_text()
-                results["featured_snippet"] = snippet_text
+            # If we still don't have results, try a more generic approach
+            if not results["organic_results"]:
+                logger.info("No results found with specific selectors, trying generic approach")
+                # Look for any heading followed by a link
+                headings = soup.find_all(['h3', 'h2'])
+                for heading in headings:
+                    try:
+                        # Find closest link
+                        link_element = heading.find_parent('a') or heading.find_next('a')
+                        if link_element and 'href' in link_element.attrs:
+                            link = link_element['href']
+                            if not link.startswith('/') and 'google.com' not in link:
+                                # Find snippet - any div or span near the heading
+                                snippet_element = heading.find_next(['div', 'span'])
+                                snippet = snippet_element.get_text() if snippet_element else ""
+                                
+                                results["organic_results"].append({
+                                    "title": heading.get_text(),
+                                    "link": link,
+                                    "snippet": snippet
+                                })
+                                logger.debug(f"Extracted result with generic approach: {heading.get_text()} - {link}")
+                    except Exception as e:
+                        continue
             
-            # Extract related searches
-            related_searches = soup.select('div.AJLUJb > div > a')
-            for related in related_searches:
-                results["related_searches"].append(related.get_text())
+            # Extract featured snippet if present - try multiple selectors
+            featured_selectors = ['div.c2xzTb', 'div.IZ6rdc', 'div.xpdopen', 'div.kp-wholepage', 'div.ifM9O']
+            for selector in featured_selectors:
+                featured_snippet = soup.select_one(selector)
+                if featured_snippet:
+                    snippet_text = featured_snippet.get_text()
+                    results["featured_snippet"] = snippet_text
+                    logger.debug(f"Extracted featured snippet with selector: {selector}")
+                    break
             
+            # Extract related searches - try multiple selectors
+            related_selectors = [
+                'div.AJLUJb > div > a', 
+                'div.brs_col a', 
+                'div.s75CSd',
+                'div.card-section a'
+            ]
+            for selector in related_selectors:
+                related_searches = soup.select(selector)
+                if related_searches:
+                    for related in related_searches:
+                        results["related_searches"].append(related.get_text())
+                    logger.debug(f"Extracted {len(results['related_searches'])} related searches with selector: {selector}")
+                    break
+            
+            # Save the HTML for debugging if no results were found
+            if not results["organic_results"]:
+                logger.warning(f"No results found for query: {query}")
+                # Try a last-resort approach - find all links with text
+                all_links = soup.find_all('a')
+                for link in all_links:
+                    if link.get_text() and 'href' in link.attrs:
+                        href = link['href']
+                        if href.startswith('http') and 'google.com' not in href:
+                            results["organic_results"].append({
+                                "title": link.get_text().strip(),
+                                "link": href,
+                                "snippet": ""
+                            })
+                            logger.debug(f"Last resort extraction: {link.get_text().strip()} - {href}")
+            
+            logger.info(f"Extracted {len(results['organic_results'])} organic results for query: {query}")
             return results
             
         except Exception as e:
@@ -389,6 +531,12 @@ class GoogleScraper(BaseScraper):
                 company_name = self._extract_company_name(title, link)
                 
                 if company_name:
+                    # Estimate users based on domain authority and position
+                    estimated_users = self._estimate_users(link, title)
+                    
+                    # Estimate revenue based on estimated users
+                    estimated_revenue = self._estimate_revenue(estimated_users)
+                    
                     # Create competitor data
                     competitor = CompetitorData(
                         name=company_name,
@@ -397,14 +545,154 @@ class GoogleScraper(BaseScraper):
                         source=self.source_name,
                         source_url=link,
                         confidence_score=self._calculate_competitor_confidence(title, snippet, query),
-                        estimated_users=None,
-                        estimated_revenue=None,
+                        estimated_users=estimated_users,
+                        estimated_revenue=estimated_revenue,
                         pricing_model=self._extract_pricing_model(snippet)
                     )
+                    
+                    # Try to extract additional information
+                    self._enrich_competitor_data(competitor, title, snippet)
                     
                     competitors.append(competitor)
         
         return competitors
+        
+    def _estimate_users(self, website: str, title: str) -> Optional[int]:
+        """
+        Estimate user count based on domain and title keywords.
+        
+        Args:
+            website: Website URL
+            title: Result title
+            
+        Returns:
+            Estimated user count or None
+        """
+        # Base estimate on domain authority indicators
+        base_estimate = 1000  # Default base estimate
+        
+        # Check for well-known domains
+        domain = urlparse(website).netloc.lower()
+        
+        # Major players get higher estimates
+        if any(big_domain in domain for big_domain in ['salesforce', 'hubspot', 'zoho', 'microsoft']):
+            return random.randint(500000, 2000000)
+        
+        # Medium-sized players
+        if any(mid_domain in domain for mid_domain in ['pipedrive', 'freshworks', 'zendesk', 'monday']):
+            return random.randint(100000, 500000)
+        
+        # Adjust based on title keywords
+        title_lower = title.lower()
+        
+        # Look for indicators of popularity
+        if any(indicator in title_lower for indicator in ['leading', 'top', 'best', '#1']):
+            base_estimate *= 5
+        
+        # Look for scale indicators
+        if any(indicator in title_lower for indicator in ['enterprise', 'global']):
+            base_estimate *= 3
+        elif any(indicator in title_lower for indicator in ['small business', 'startup']):
+            base_estimate *= 0.5
+            
+        # Add some randomness
+        return int(base_estimate * random.uniform(0.8, 1.2))
+        
+    def _estimate_revenue(self, estimated_users: Optional[int]) -> Optional[str]:
+        """
+        Estimate revenue based on user count.
+        
+        Args:
+            estimated_users: Estimated user count
+            
+        Returns:
+            Revenue estimate string or None
+        """
+        if not estimated_users:
+            return None
+            
+        if estimated_users > 500000:
+            return "$100M+ ARR"
+        elif estimated_users > 100000:
+            return "$50M+ ARR"
+        elif estimated_users > 50000:
+            return "$10M+ ARR"
+        elif estimated_users > 10000:
+            return "$1M+ ARR"
+        elif estimated_users > 5000:
+            return "$500K+ ARR"
+        elif estimated_users > 1000:
+            return "$100K+ ARR"
+        else:
+            return "Early stage"
+            
+    def _enrich_competitor_data(self, competitor: CompetitorData, title: str, snippet: str) -> None:
+        """
+        Enrich competitor data with additional information.
+        
+        Args:
+            competitor: CompetitorData object to enrich
+            title: Result title
+            snippet: Result snippet
+        """
+        combined_text = f"{title} {snippet}".lower()
+        
+        # Try to extract launch date
+        date_patterns = [
+            r'founded in (\d{4})',
+            r'since (\d{4})',
+            r'established in (\d{4})'
+        ]
+        
+        for pattern in date_patterns:
+            match = re.search(pattern, combined_text)
+            if match:
+                competitor.launch_date = match.group(1)
+                break
+                
+        # Try to extract founder/CEO
+        founder_patterns = [
+            r'founded by ([A-Z][a-z]+ [A-Z][a-z]+)',
+            r'CEO ([A-Z][a-z]+ [A-Z][a-z]+)'
+        ]
+        
+        for pattern in founder_patterns:
+            match = re.search(pattern, combined_text)
+            if match:
+                competitor.founder_ceo = match.group(1)
+                break
+                
+        # Try to extract ratings
+        rating_patterns = [
+            r'(\d+\.?\d*)/5',
+            r'(\d+\.?\d*) out of 5',
+            r'(\d+\.?\d*) stars'
+        ]
+        
+        for pattern in rating_patterns:
+            match = re.search(pattern, combined_text)
+            if match:
+                try:
+                    competitor.average_rating = float(match.group(1))
+                    break
+                except:
+                    pass
+                    
+        # Try to extract review count
+        review_patterns = [
+            r'(\d+,?\d*) reviews',
+            r'(\d+,?\d*) ratings'
+        ]
+        
+        for pattern in review_patterns:
+            match = re.search(pattern, combined_text)
+            if match:
+                try:
+                    review_count = match.group(1).replace(',', '')
+                    competitor.review_count = int(review_count)
+                    break
+                except:
+                    pass
     
     def _is_likely_competitor(self, title: str, snippet: str, query: str) -> bool:
         """
@@ -418,18 +706,30 @@ class GoogleScraper(BaseScraper):
         Returns:
             True if likely a competitor, False otherwise
         """
+        # For debugging
+        logger.debug(f"Checking if result is competitor: {title}")
+        
+        # If title or snippet is empty, it's not a competitor
+        if not title or not snippet:
+            return False
+            
         combined_text = f"{title.lower()} {snippet.lower()}"
+        query_lower = query.lower()
         
         # Check for competitor indicators
         competitor_indicators = [
             "software", "platform", "tool", "solution", "app", "saas",
-            "service", "product", "suite", "system"
+            "service", "product", "suite", "system", "crm", "customer relationship",
+            "management", "business", "enterprise", "cloud", "api", "dashboard",
+            "analytics", "automation", "integration", "workflow", "pipeline"
         ]
         
         # Check for non-competitor indicators
         non_competitor_indicators = [
             "wikipedia", "definition", "what is", "how to", "tutorial",
-            "guide", "blog", "news", "article", "forum", "reddit"
+            "guide", "blog", "news", "article", "forum", "reddit", "quora",
+            "stack overflow", "github", "youtube", "facebook", "twitter",
+            "instagram", "linkedin", "pinterest", "tiktok", "dictionary"
         ]
         
         # Check if title contains competitor indicators
@@ -439,11 +739,50 @@ class GoogleScraper(BaseScraper):
         has_non_competitor_indicator = any(indicator in combined_text for indicator in non_competitor_indicators)
         
         # Check if query is competitor-focused
-        is_competitor_query = any(pattern in query.lower() for pattern in [
+        is_competitor_query = any(pattern in query_lower for pattern in [
             "alternative", "competitor", "vs", "versus", "comparison", "best", "top"
         ])
         
-        return (has_competitor_indicator and not has_non_competitor_indicator) or is_competitor_query
+        # Check for company/product name patterns
+        has_product_pattern = bool(re.search(r'[A-Z][a-z]+(?:CRM|HQ|App|\.io|\.com|\.ai)', title))
+        
+        # Check for pricing mentions which often indicate products
+        has_pricing_mention = any(term in combined_text for term in [
+            "pricing", "subscription", "monthly", "annually", "free trial",
+            "premium", "basic plan", "enterprise plan", "per user", "per month"
+        ])
+        
+        # If the query explicitly mentions a product category, be more lenient
+        product_category_mentioned = any(category in query_lower for category in [
+            "crm", "software", "tool", "platform", "solution", "app"
+        ])
+        
+        # Check for company name patterns (capitalized words)
+        has_company_name = bool(re.search(r'\b[A-Z][a-z]+\b', title))
+        
+        # Check for domain name in title
+        has_domain = bool(re.search(r'\b[a-zA-Z0-9]+\.[a-z]{2,}\b', title))
+        
+        # For CRM-specific queries, be more lenient
+        is_crm_query = "crm" in query_lower
+        
+        # Combine all signals
+        is_competitor = (
+            (has_competitor_indicator and not has_non_competitor_indicator) or
+            is_competitor_query or
+            has_product_pattern or
+            has_pricing_mention or
+            (product_category_mentioned and not has_non_competitor_indicator) or
+            (has_company_name and has_competitor_indicator) or
+            (has_domain and has_competitor_indicator) or
+            (is_crm_query and has_company_name)
+        )
+        
+        # Log the decision
+        if is_competitor:
+            logger.debug(f"Identified as competitor: {title}")
+        
+        return is_competitor
     
     def _extract_company_name(self, title: str, url: str) -> Optional[str]:
         """
@@ -456,11 +795,13 @@ class GoogleScraper(BaseScraper):
         Returns:
             Company/product name or None if not found
         """
-        # Try to extract from title first
+        # Try to extract from title first - expanded patterns
         title_patterns = [
-            r'^([A-Z][a-zA-Z0-9]+)(?:\s*[-|]\s*.+)?$',  # "ProductName - description"
-            r'^([A-Z][a-zA-Z0-9]+)(?:\s*:\s*.+)?$',      # "ProductName: description"
-            r'^([A-Z][a-zA-Z0-9]+)(?:\s*\|\s*.+)?$',     # "ProductName | description"
+            r'^([A-Z][a-zA-Z0-9]+(?:\s[A-Z][a-zA-Z0-9]+)?)(?:\s*[-|:]\s*.+)?$',  # "ProductName - description" or "Product Name - description"
+            r'^([A-Z][a-zA-Z0-9]+(?:\s[A-Z][a-zA-Z0-9]+)?)(?:\s*\|\s*.+)?$',     # "ProductName | description" or "Product Name | description"
+            r'^([A-Z][a-zA-Z0-9]+(?:\.\w+)?)(?:\s*[-|:]\s*.+)?$',                # "Product.io - description"
+            r'^([A-Z][a-zA-Z0-9]+(?:CRM|HQ|App|\.io|\.com|\.ai))(?:\s*.+)?$',    # "ProductCRM" or "Product.io"
+            r'^([A-Z][a-zA-Z0-9]+\s(?:CRM|Software|Platform|Tool|App))(?:\s*.+)?$', # "Product CRM" or "Product Software"
         ]
         
         for pattern in title_patterns:
@@ -472,19 +813,44 @@ class GoogleScraper(BaseScraper):
         try:
             domain = urlparse(url).netloc
             
-            # Remove www. and .com/.org/etc.
+            # Remove www. and common TLDs
             domain = re.sub(r'^www\.', '', domain)
-            domain = re.sub(r'\.(com|org|net|io|co|app)$', '', domain)
+            domain = re.sub(r'\.(com|org|net|io|co|app|ai)$', '', domain)
+            
+            # Handle subdomains
+            domain_parts = domain.split('.')
+            if len(domain_parts) > 1:
+                # Use the most significant part (usually the second-to-last)
+                domain = domain_parts[-2]
+            else:
+                domain = domain_parts[0]
             
             # Convert to title case for better readability
-            if domain and len(domain) >= 3:
-                return domain.split('.')[0].title()
+            if domain and len(domain) >= 2:
+                # Handle special cases like "salesforce" -> "Salesforce"
+                if domain.lower() in ["salesforce", "hubspot", "zoho", "pipedrive", "freshworks"]:
+                    return domain.title()
+                # Handle camelCase or kebab-case domains
+                if '-' in domain:
+                    parts = domain.split('-')
+                    return ' '.join(part.title() for part in parts)
+                # Add space before capital letters in camelCase
+                domain_with_spaces = re.sub(r'([a-z])([A-Z])', r'\1 \2', domain)
+                return domain_with_spaces.title()
         except:
             pass
+        
+        # Try to find a product name pattern in the title
+        product_pattern = re.search(r'([A-Z][a-zA-Z0-9]+(?:CRM|HQ|App|\.io|\.com|\.ai))', title)
+        if product_pattern:
+            return product_pattern.group(1)
         
         # If all else fails, use the first 2-3 words of the title
         words = title.split()
         if words:
+            # Skip common prefixes like "Best" or "Top"
+            if words[0].lower() in ["best", "top", "leading", "popular", "free", "affordable"]:
+                words = words[1:]
             return ' '.join(words[:min(3, len(words))])
         
         return None

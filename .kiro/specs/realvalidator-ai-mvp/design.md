@@ -1,12 +1,12 @@
-# Design Document
+# Design Document - launch-lens AI Validation Platform
 
 ## Overview
 
 launch-lens AI is architected as a modern full-stack SaaS idea validation platform using Next.js 14 with App Router for the frontend, Supabase for authentication and database, and FastAPI with Python for the scraping and AI analysis backend. The system follows a microservices approach where the frontend handles user interactions and data presentation, while the backend manages intensive scraping operations and AI processing asynchronously.
 
-The platform combines automated web scraping from 9 distinct sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search, Google Play Store, Apple App Store, Microsoft Store) with Google AI Studio's Gemini model to provide comprehensive validation reports. These reports include market opportunity analysis, competitive landscape assessment, user feedback sentiment analysis, and strategic recommendations with calculated market scores.
+The platform combines automated web scraping from multiple distinct sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search, Google Play Store, Apple App Store, Microsoft Store) with Google AI Studio's Gemini model to provide comprehensive validation reports. These reports include market opportunity analysis, competitive landscape assessment, user feedback sentiment analysis, and strategic recommendations with calculated market scores (1-10 scale).
 
-The architecture prioritizes type safety through tRPC, real-time updates via Supabase subscriptions, and scalable background processing for data collection and analysis. The design ensures data security through Row Level Security (RLS) policies, maintains separation of concerns between user-facing operations and data processing workflows, and provides responsive mobile-optimized user experiences.
+The architecture prioritizes type safety through tRPC, real-time updates via Supabase subscriptions, and scalable background processing for data collection and analysis. The design ensures data security through Row Level Security (RLS) policies, maintains separation of concerns between user-facing operations and data processing workflows, and provides responsive mobile-optimized user experiences with comprehensive error handling and recovery mechanisms.
 
 ## Architecture
 
@@ -28,17 +28,17 @@ graph TB
     end
     
     subgraph "External Services"
-        J[Google AI Studio]
-        K[Social Media APIs]
-        L[Web Scraping Targets]
+        L[Google AI Studio]
+        M[Social Media APIs]
+        N[Web Scraping Targets]
     end
     
     C --> F
     D --> F
     E --> G
-    H --> K
-    H --> L
-    I --> J
+    H --> M
+    H --> N
+    I --> L
     
     style A fill:#e1f5fe
     style G fill:#f3e5f5
@@ -47,47 +47,30 @@ graph TB
 
 ### Data Flow
 
-1. **User Interaction**: User submits validation request through Next.js frontend
-2. **Request Processing**: tRPC server creates validation record in Supabase with "processing" status
-3. **Background Trigger**: tRPC server triggers FastAPI scraping service asynchronously
-4. **Data Collection**: FastAPI orchestrates parallel scraping from 9 sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search, Google Play Store, Apple App Store, Microsoft Store)
-5. **Data Storage**: Scraped competitors and feedback are stored in Supabase with validation relationships
-6. **AI Analysis**: Gemini AI processes scraped data to generate comprehensive analysis
-7. **Completion**: Validation status updated to "completed" with market score calculation
-8. **Real-time Updates**: Frontend receives real-time updates via Supabase subscriptions
+1. **User Authentication**: User creates account and authenticates via Supabase Auth
+2. **Validation Creation**: User submits validation request (title and idea description) through Next.js frontend
+3. **Request Processing**: tRPC server validates input constraints and creates validation record in Supabase with "processing" status
+4. **Background Trigger**: tRPC server triggers FastAPI scraping service asynchronously
+5. **Data Collection**: FastAPI orchestrates parallel scraping from multiple sources with error handling
+6. **Data Storage**: Scraped competitors and feedback stored in Supabase with proper data cleaning
+7. **AI Analysis**: Gemini AI processes scraped data to generate comprehensive market analysis
+8. **Market Scoring**: System calculates market score (1-10) based on competition and sentiment analysis
+9. **Completion**: Validation status updated to "completed" with all analysis results
+10. **Real-time Updates**: Frontend receives real-time updates via Supabase subscriptions
+11. **Results Display**: User views comprehensive validation results through responsive interface
 
 ## Components and Interfaces
-
-### Frontend Components (Next.js)
-
-#### Authentication Layer
-- **AuthProvider**: Context provider managing Supabase Auth state
-- **LoginForm/SignupForm**: Authentication forms with validation
-- **ProtectedRoute**: HOC ensuring authenticated access
-
-#### Dashboard Components
-- **ValidationList**: Displays user's validations with status indicators
-- **ValidationCard**: Individual validation summary with market score
-- **CreateValidationForm**: Form for submitting new validation requests
-
-#### Results Components
-- **ValidationResults**: Main results page orchestrating all analysis sections
-- **CompetitorTable**: Sortable table displaying competitor data with filtering
-- **FeedbackAnalysis**: Sentiment analysis visualization with positive/negative categorization
-- **AIAnalysis**: Structured display of AI-generated insights and recommendations
-- **LoadingStates**: Real-time progress indicators during processing
-
-#### UI Components
-- **Button/Input/Card**: Reusable Tailwind CSS components
-- **ErrorBoundary**: Error handling and user feedback
 
 ### Backend Components (FastAPI)
 
 #### Scraping Architecture
 - **ScrapingService**: Orchestrates parallel scraping from all sources with error handling for individual scraper failures
 - **BaseScraper**: Abstract base class defining scraper interface with standardized data extraction methods
+- **ProductHuntScraper**: 
+  - Extracts comprehensive product data and competitor information
+  - Handles rate limiting and API authentication
+  - Parses competitor information including users, revenue, and pricing models
 - **Source-Specific Scrapers**: 
-  - ProductHuntScraper: Extracts product data and competitor information with user counts and pricing models
   - RedditScraper: Searches relevant subreddits using Reddit API (PRAW) for user discussions and feedback
   - FacebookScraper: Scrapes public groups and pages for user sentiment and discussions
   - TwitterScraper: Extracts tweets and sentiment analysis for market feedback
@@ -98,9 +81,9 @@ graph TB
   - MicrosoftStoreScraper: Windows app data and reviews for desktop market analysis
 
 #### AI and Analysis
-- **AIService**: Integrates with Google AI Studio Gemini model
-- **AnalysisEngine**: Processes scraped data for market scoring
-- **SentimentAnalyzer**: Categorizes feedback sentiment
+- **AIService**: Integrates with Google AI Studio Gemini model for comprehensive analysis generation
+- **AnalysisEngine**: Processes scraped data for market scoring and insight generation
+- **SentimentAnalyzer**: Categorizes feedback sentiment with confidence scoring
 
 #### Data Management
 - **SupabaseService**: Database operations and validation status management
@@ -108,32 +91,29 @@ graph TB
 
 ### API Interfaces
 
-#### tRPC Router Structure
-```typescript
-// Validation Operations
-validationsRouter = {
-  create: protectedProcedure,      // Create new validation
-  getAll: protectedProcedure,      // Get user's validations
-  getById: protectedProcedure,     // Get validation with related data
-  updateStatus: protectedProcedure // Update processing status
-}
-
-// Authentication
-authRouter = {
-  getSession: publicProcedure,     // Get current session
-  signOut: protectedProcedure      // Sign out user
-}
-```
-
 #### FastAPI Endpoints
 ```python
 # Scraping Operations
-POST /api/scrape              # Trigger validation processing
+POST /api/process-validation  # Trigger validation processing
 GET /health                   # Health check endpoint
 
 # Background Tasks
 process_validation()          # Async validation processing
 calculate_market_score()      # Market score calculation
+```
+
+#### tRPC Procedures
+```typescript
+// Authentication
+auth.login()                  # User authentication
+auth.signup()                 # User registration
+auth.logout()                 # Session termination
+
+// Validations
+validations.create()          # Create new validation
+validations.getAll()          # Get user's validations
+validations.getById()         # Get specific validation
+validations.updateStatus()    # Update validation status
 ```
 
 ## Data Models
@@ -142,27 +122,16 @@ calculate_market_score()      # Market score calculation
 
 #### Core Tables
 ```sql
--- User profiles (extends Supabase Auth)
-profiles {
-  id: UUID (PK, references auth.users)
-  first_name: TEXT
-  created_at: TIMESTAMP
-  updated_at: TIMESTAMP
-}
-
--- Validation requests
+-- User validations
 validations {
   id: UUID (PK)
   user_id: UUID (FK to auth.users)
   title: TEXT (1-255 chars)
   idea_text: TEXT (10-1000 chars)
-  market_score: DECIMAL(3,1)
   status: TEXT ('processing'|'completed'|'failed')
+  market_score: INTEGER (1-10)
   created_at: TIMESTAMP
-  completed_at: TIMESTAMP
-  competitor_count: INTEGER
-  feedback_count: INTEGER
-  sources_scraped: JSONB
+  updated_at: TIMESTAMP
 }
 
 -- Competitor data
@@ -181,7 +150,7 @@ competitors {
   created_at: TIMESTAMP
 }
 
--- User feedback
+-- User feedback and sentiment
 feedback {
   id: UUID (PK)
   validation_id: UUID (FK)
@@ -194,7 +163,7 @@ feedback {
   created_at: TIMESTAMP
 }
 
--- AI analysis results
+-- AI-generated analysis
 ai_analysis {
   id: UUID (PK)
   validation_id: UUID (FK)
@@ -209,27 +178,19 @@ ai_analysis {
 }
 ```
 
-#### Row Level Security (RLS) Policies
-- Users can only access their own validations and related data
-- Cascade delete policies ensure data consistency
-- Service role key used for backend operations
-
 ### TypeScript Interfaces
 
-#### Frontend Types
+#### Frontend Data Types
 ```typescript
 interface Validation {
   id: string;
   userId: string;
   title: string;
   ideaText: string;
-  marketScore?: number;
   status: 'processing' | 'completed' | 'failed';
-  createdAt: Date;
-  completedAt?: Date;
-  competitorCount: number;
-  feedbackCount: number;
-  sourcesScraped: string[];
+  marketScore?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface Competitor {
@@ -244,87 +205,144 @@ interface Competitor {
   source: string;
   sourceUrl?: string;
   confidenceScore: number;
+  createdAt: string;
 }
 
-interface ValidationResults {
-  validation: Validation;
-  competitors: Competitor[];
-  feedback: Feedback[];
-  aiAnalysis?: AIAnalysis;
+interface Feedback {
+  id: string;
+  validationId: string;
+  text: string;
+  sentiment: 'positive' | 'negative' | 'neutral';
+  sentimentScore: number;
+  source: string;
+  sourceUrl?: string;
+  authorInfo?: any;
+  createdAt: string;
+}
+
+interface AIAnalysis {
+  id: string;
+  validationId: string;
+  marketOpportunity: string;
+  competitiveAnalysis: string;
+  strategicRecommendations: string;
+  riskAssessment: string;
+  gtmStrategy: string;
+  featurePriorities: string;
+  executiveSummary: string;
+  createdAt: string;
 }
 ```
 
-## Performance and Responsive Design
-
-### Responsive Design Strategy
-- **Mobile-First Approach**: Design components with mobile devices as the primary target, then enhance for larger screens
-- **Tailwind CSS Breakpoints**: Utilize responsive utilities (sm:, md:, lg:, xl:) for adaptive layouts
-- **Touch-Friendly Interfaces**: Ensure buttons and interactive elements meet minimum touch target sizes (44px)
-- **Flexible Grid Systems**: Use CSS Grid and Flexbox for layouts that adapt to different screen sizes
-- **Progressive Enhancement**: Core functionality works on all devices, with enhanced features for capable devices
-
-### Performance Optimization
-- **Loading States**: Implement skeleton screens and progress indicators during data fetching
-- **Real-time Updates**: Use Supabase subscriptions to provide live status updates without polling
-- **Code Splitting**: Leverage Next.js automatic code splitting for faster initial page loads
-- **Image Optimization**: Use Next.js Image component for optimized image delivery
-- **Caching Strategy**: Implement appropriate caching for static content and API responses
-
-### User Experience Requirements
-- **3-Second Load Time**: Cached content and critical paths load within 3 seconds
-- **Offline Graceful Degradation**: Display cached data and appropriate messaging when offline
-- **Consistent Cross-Device Experience**: Maintain design consistency across mobile, tablet, and desktop
-- **Accessibility Compliance**: Follow WCAG 2.1 guidelines for inclusive design
-
 ## Error Handling
 
-### Frontend Error Handling
-- **React Error Boundaries**: Catch and display component errors gracefully
-- **tRPC Error Handling**: Type-safe error responses with user-friendly messages
-- **Form Validation**: Real-time validation with Zod schemas
-- **Network Errors**: Retry mechanisms and offline state handling
-- **Loading States**: Skeleton screens and progress indicators
+### Comprehensive Error Management Strategy
 
-### Backend Error Handling
-- **Scraping Failures**: Continue processing other sources when individual scrapers fail
-- **Rate Limiting**: Respect API limits and implement exponential backoff
-- **AI Service Errors**: Fallback to basic analysis when Gemini API fails
-- **Database Errors**: Transaction rollback and data consistency checks
-- **Validation Status**: Update to "failed" status with error logging
+The system implements multi-layered error handling to ensure robust operation and user experience:
 
-### Error Recovery Strategies
-- **Partial Success**: Display available data even if some sources fail
-- **Retry Mechanisms**: Allow users to retry failed validations
-- **Graceful Degradation**: Core functionality works even with service failures
-- **User Feedback**: Clear error messages with actionable next steps
+#### Frontend Error Handling
+- **React Error Boundaries**: Catch component-level errors and display fallback UI
+- **Form Validation**: Real-time validation with user-friendly error messages
+- **Network Error Recovery**: Retry mechanisms for failed API calls with exponential backoff
+- **Loading States**: Clear indicators during processing with timeout handling
+
+#### Backend Error Handling
+- **Scraper Resilience**: Individual scraper failures don't halt entire validation process
+- **Rate Limiting**: Respect external API limits with proper backoff strategies
+- **Data Quality**: Validation and sanitization of scraped data before storage
+- **Status Management**: Clear validation status updates ('processing', 'completed', 'failed')
+
+#### Design Rationale
+This approach ensures the platform remains functional even when individual components fail, providing users with clear feedback and recovery options while maintaining data integrity.
+
+## Security and Privacy
+
+### Data Protection Strategy
+
+#### Authentication and Authorization
+- **Supabase Auth**: Secure user authentication with session management
+- **Row Level Security (RLS)**: Database-level access control ensuring users only see their data
+- **Protected Routes**: Frontend route protection for authenticated users only
+
+#### Data Security
+- **Input Validation**: Strict validation of user inputs (title 1-255 chars, idea 10-1000 chars)
+- **Data Sanitization**: Clean and validate all scraped data before storage
+- **Secure API Communication**: HTTPS for all external API calls
+- **Rate Limiting**: Prevent abuse through API endpoint rate limiting
+
+#### Design Rationale
+Security is implemented at multiple layers to protect user data and ensure compliance with privacy standards while maintaining system performance.
+
+## Performance and Scalability
+
+### Real-time Updates and Responsiveness
+
+#### Real-time Architecture
+- **Supabase Subscriptions**: Real-time validation status updates without polling
+- **Optimistic Updates**: Immediate UI feedback for better user experience
+- **Background Processing**: Asynchronous scraping prevents UI blocking
+
+#### Mobile Optimization
+- **Responsive Design**: Tailwind CSS for mobile-first responsive layouts
+- **Touch-friendly UI**: Optimized interactions for mobile devices
+- **Performance Budgets**: 3-second load time targets for cached content
+
+#### Design Rationale
+The real-time architecture ensures users receive immediate feedback on validation progress while the responsive design provides consistent experience across devices.
+
+## AI Analysis Integration
+
+### Comprehensive Market Intelligence
+
+#### AI Processing Pipeline
+- **Data Aggregation**: Combine scraped data from all sources for comprehensive analysis
+- **Market Scoring**: Calculate 1-10 market score based on competition density and sentiment
+- **Strategic Insights**: Generate 8 specific recommendations including MVP features, pricing, and GTM strategy
+
+#### Analysis Components
+- **Market Opportunity**: Assess market size and potential based on competitor analysis
+- **Competitive Landscape**: Detailed competitor analysis with positioning insights
+- **Risk Assessment**: Identify potential challenges and mitigation strategies
+- **Feature Prioritization**: Recommend MVP features based on market gaps
+
+#### Design Rationale
+The AI integration transforms raw scraped data into actionable business insights, providing entrepreneurs with comprehensive market intelligence to make informed decisions about their business ideas.
+
+## Dashboard and Validation Management
+
+### User Dashboard Design
+
+#### Dashboard Components
+- **ValidationList**: Displays all user validations in chronological order with status indicators
+- **ValidationCard**: Shows title, status, market score, and creation date for each validation
+- **Progress Indicators**: Real-time status updates during processing with estimated completion time
+- **Empty State**: Call-to-action for users with no validations to create their first validation
+
+#### Validation Results Interface
+- **Executive Summary**: Prominently displays AI-generated summary and market score
+- **Competitor Table**: Sortable display of competitor details including users, revenue, and pricing
+- **Sentiment Analysis**: Visual representation of feedback categorized as positive/negative/neutral
+- **AI Analysis Sections**: Organized presentation of market opportunity, competitive analysis, strategic recommendations, risk assessment, GTM strategy, and feature priorities
+
+#### Design Rationale
+The dashboard provides a centralized view for users to manage multiple validation projects while the results interface presents complex data in an accessible, actionable format that supports decision-making.
 
 ## Testing Strategy
 
-### Frontend Testing
-- **Unit Tests**: Jest and React Testing Library for components
-- **Integration Tests**: tRPC client-server integration
-- **E2E Tests**: Playwright for critical user flows
-- **Visual Regression**: Screenshot testing for UI consistency
+### Comprehensive Testing Approach
 
-### Backend Testing
-- **Unit Tests**: pytest for individual scraper and service functions
-- **Integration Tests**: FastAPI test client for endpoint testing
-- **Mock Testing**: Mock external APIs and services
+#### Frontend Testing
+- **Unit Tests**: Component testing with Jest and React Testing Library
+- **Integration Tests**: tRPC client-server communication testing
+- **E2E Tests**: Critical user flows using Playwright or Cypress
+- **Responsive Testing**: Cross-device and cross-browser compatibility
+
+#### Backend Testing
+- **Unit Tests**: Individual scraper and service function testing with pytest
+- **Integration Tests**: FastAPI endpoint testing with test client
+- **Mock Testing**: External API mocking for reliable test execution
 - **Load Testing**: Concurrent scraping performance validation
 
-### Test Coverage Requirements
-- **Frontend**: 80% coverage for components and utilities
-- **Backend**: 90% coverage for business logic and scrapers
-- **Critical Paths**: 100% coverage for authentication and data processing
+#### Design Rationale
+The testing strategy ensures reliability across all system components while maintaining development velocity through automated testing pipelines and comprehensive coverage of critical user journeys.
 
-### Testing Data
-- **Mock Scraped Data**: Realistic test datasets for each source
-- **AI Response Mocks**: Consistent Gemini API responses for testing
-- **Database Fixtures**: Test data for various validation scenarios
-- **Error Scenarios**: Comprehensive failure mode testing
-
-### Continuous Integration
-- **GitHub Actions**: Automated testing on pull requests
-- **Type Checking**: TypeScript and Python type validation
-- **Linting**: ESLint, Prettier, and Black code formatting
-- **Security Scanning**: Dependency vulnerability checks

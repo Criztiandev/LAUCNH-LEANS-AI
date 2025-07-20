@@ -1,6 +1,8 @@
 # Implementation Plan
 
-- [x] 1. Setup project foundation and authentication
+- [ ] 1. Setup project foundation and authentication
+
+
   - Initialize Next.js 14 project with App Router and configure TypeScript
   - Setup Supabase project and configure authentication with environment variables
   - Create Supabase database tables with RLS policies as defined in schema
@@ -92,6 +94,15 @@
   - Test complete validation flow from creation to processing trigger
   - _Requirements: 2.4, 2.5_
 
+- [x] 11. Implement Reddit scraper
+  - Create RedditScraper using PRAW library or web scraping
+  - Search relevant subreddits for discussions related to keywords
+  - Extract user feedback and sentiment indicators
+  - Handle Reddit API authentication and rate limits
+  - Write unit tests with mocked Reddit API responses
+  - Test Reddit scraper with different subreddit configurations and search terms
+  - _Requirements: 3.2_
+
 - [x] 12. Create Google search scraper
   - Implement GoogleScraper for search trends and competitor research
   - Extract search volume and related keyword data
@@ -101,23 +112,22 @@
   - Test Google scraper with different search queries and result formats
   - _Requirements: 3.3_
 
-- [ ] 13. Implement sentiment analysis service
-  - Create sentiment analysis utility for feedback categorization
-  - Implement scoring system for positive/negative/neutral classification
-  - Integrate sentiment analysis into feedback processing pipeline
+- [ ] 13. Enhance sentiment analysis service
+  - Create dedicated sentiment analysis utility for more accurate feedback categorization
+  - Implement advanced scoring system for positive/negative/neutral classification
+  - Integrate enhanced sentiment analysis into feedback processing pipeline
   - Add confidence scoring for sentiment predictions
   - Write unit tests for sentiment analysis accuracy with test datasets
   - Test sentiment analysis with various text samples and edge cases
   - _Requirements: 3.5, 4.5_
 
-- [ ] 14. Create social media scrapers
-  - Implement TwitterScraper for tweets and sentiment analysis
+<!-- - [ ] 14. Create social media scrapers
   - Create FacebookScraper for public groups and pages
   - Build InstagramScraper for hashtag and content analysis
   - Handle API authentication and rate limits for each platform
   - Write unit tests with mocked social media API responses
   - Test scrapers with various search scenarios and content types
-  - _Requirements: 3.3_
+  - _Requirements: 3.3_ -->
 
 - [ ] 15. Create app store scrapers
   - Implement GooglePlayStoreScraper for Android app data and reviews
@@ -219,12 +229,3 @@
   - Conduct end-to-end production testing
   - Test deployment pipeline and production environment functionality
   - _Requirements: 7.2_
-
-- [ ] 11. Implement Reddit scraper
-  - Create RedditScraper using PRAW library or web scraping
-  - Search relevant subreddits for discussions related to keywords
-  - Extract user feedback and sentiment indicators
-  - Handle Reddit API authentication and rate limits
-  - Write unit tests with mocked Reddit API responses
-  - Test Reddit scraper with different subreddit configurations and search terms
-  - _Requirements: 3.2_

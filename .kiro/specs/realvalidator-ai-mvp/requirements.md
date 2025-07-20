@@ -32,14 +32,14 @@ launch-lens AI is a SaaS idea validation platform that helps entrepreneurs and p
 
 ### Requirement 3
 
-**User Story:** As a user, I want the system to automatically scrape multiple data sources, so that I can get comprehensive market intelligence without manual research.
+**User Story:** As a user, I want the system to automatically scrape multiple data sources using headless browsers, so that I can get comprehensive and accurate market intelligence without manual research.
 
 #### Acceptance Criteria
 
 1. WHEN a validation is triggered THEN the system SHALL scrape Product Hunt for similar products and competitor data
 2. WHEN scraping Reddit THEN the system SHALL search relevant subreddits for user discussions and feedback
-3. WHEN scraping social media THEN the system SHALL extract user sentiment from Facebook, Twitter, and Instagram
-4. WHEN scraping Google THEN the system SHALL gather search trends and competitor information
+3. WHEN scraping social media THEN the system SHALL extract user sentiment from Facebook, Twitter, and Instagram using headless browsers
+4. WHEN scraping Google THEN the system SHALL use Patchright headless browser to gather search trends and competitor information with stealth measures
 5. WHEN scraping completes THEN the system SHALL store competitors, feedback, and source metadata in the database
 6. WHEN scraping encounters errors THEN the system SHALL continue with other sources and log failures
 7. WHEN all scraping is complete THEN the system SHALL update validation status and trigger AI analysis
@@ -106,3 +106,15 @@ launch-lens AI is a SaaS idea validation platform that helps entrepreneurs and p
 3. WHEN handling authentication THEN the system SHALL use secure session management via Supabase Auth
 4. WHEN scraping external sources THEN the system SHALL respect rate limits and terms of service
 5. WHEN processing fails THEN the system SHALL update validation status to "failed" and log errors securely
+
+### Requirement 9
+
+**User Story:** As a user, I want to export my validation results in structured formats, so that I can analyze the data further or share it with my team.
+
+#### Acceptance Criteria
+
+1. WHEN a user views completed validation results THEN the system SHALL provide a CSV export option for competitor data
+2. WHEN a user requests CSV export THEN the system SHALL generate a properly formatted CSV file with competitor information including name, description, website, estimated users, revenue, pricing model, and confidence score
+3. WHEN a user views completed validation results THEN the system SHALL provide a JSON export option for complete validation data
+4. WHEN a user requests JSON export THEN the system SHALL generate a structured JSON file containing all validation data including competitors, feedback, AI analysis, and metadata
+5. WHEN export files are generated THEN the system SHALL trigger automatic download with descriptive filenames including validation title and export date

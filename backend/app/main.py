@@ -34,6 +34,10 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/api", tags=["health"])
 
+# Import and include validation router
+from app.routers import validation
+app.include_router(validation.router, prefix="/api", tags=["validation"])
+
 @app.on_event("startup")
 async def startup_event():
     """Application startup event."""

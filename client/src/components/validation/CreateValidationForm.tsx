@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { trpc } from '@/lib/trpc/client'
 import { createValidationSchema, type CreateValidationFormData } from '@/lib/validations/validation'
+import { useBackendApi } from '@/hooks/useBackendApi'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,7 +15,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 
 export function CreateValidationForm() {
   const router = useRouter()
-  const [error, setError] = useState<string | null>(null)
+  const [formError, setFormError] = useState<string | null>(null)
+  const backendApi = useBackendApi()
 
   const {
     register,
@@ -26,18 +28,32 @@ export function CreateValidationForm() {
   })
 
   const createValidation = trpc.validations.create.useMutation({
-    onSuccess: () => {
-      router.push(`/dashboard`)
-    },
     onError: (error) => {
-      setError(error.message || 'Failed to create validation')
+      setFormError(error.message || 'Failed to create validation')
     },
   })
 
   const onSubmit = async (data: CreateValidationFormData) => {
     try {
-      setError(null)
-      await createValidation.mutateAsync(data)
+      setFormError(null)
+      backendApi.clearError()
+      
+      // Step 1: Create validation in database
+      const validation = await createValidation.mutateAsync(data)
+      
+      // Step 2: Trigger backend processing
+      const processingResult = await backendApi.processValidation(validation.id)
+      
+      if (processingResult) {
+        // Success - redirect to dashboard
+        router.push(`/dashboard`)
+      } else {
+        // Backend processing failed, but validation was created
+        // Show error but still redirect after delay
+        setTimeout(() => {
+          router.push(`/dashboard`)
+        }, 3000)
+      }
     } catch {
       // Error is handled by onError callback
     }
@@ -56,9 +72,27 @@ export function CreateValidationForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {error && (
+          {(formError || backendApi.error) && (
             <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
+              <AlertDescription>
+                {formError || backendApi.error}
+                {backendApi.error && formError === null && (
+                  <div className="mt-2 text-sm">
+                    Your validation was created successfully. You can view it in your dashboard.
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {backendApi.isConnected === false && (
+            <Alert>
+              <AlertDescription>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span>Backend processing service is not available</span>
+                </div>
+              </AlertDescription>
             </Alert>
           )}
 
@@ -100,13 +134,24 @@ export function CreateValidationForm() {
 
           <Button
             type="submit"
-            disabled={isSubmitting || createValidation.isPending}
+            disabled={isSubmitting || createValidation.isPending || backendApi.isLoading}
             className="w-full"
           >
             {isSubmitting || createValidation.isPending
               ? 'Creating Validation...'
+              : backendApi.isLoading
+              ? 'Starting Processing...'
               : 'Create Validation'}
           </Button>
+          
+          {backendApi.isLoading && (
+            <div className="text-sm text-gray-600 text-center">
+              <div className="flex items-center justify-center space-x-2">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                <span>Connecting to processing service...</span>
+              </div>
+            </div>
+          )}
         </form>
       </CardContent>
     </Card>

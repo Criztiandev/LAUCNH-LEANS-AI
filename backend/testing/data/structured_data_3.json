@@ -1,0 +1,20 @@
+{
+  "@context": "https://schema.org",
+  "@type": "Review",
+  "author": {
+    "@type": "Person",
+    "@id": "https://www.producthunt.com/@sarah_barron",
+    "name": "Sarah Barron",
+    "image": "https://ph-avatars.imgix.net/2704290/a3ffe619-dfc8-48fa-86b4-b1d9d55ba9c3.png",
+    "url": "https://www.producthunt.com/@sarah_barron"
+  },
+  "datePublished": "2022-05-04T06:46:17-07:00",
+  "reviewBody": "I've been using folk for a couple of months and I love it! It's super easy to use, just sync all of your contacts in folk and then create the workflows you need for yourself and your team. I used to use Notion for managing PR outreach, and I've switched to folk - I'm a big Notion fan but you can't beat a tool that was designed for contacts to manage contacts.",
+  "reviewRating": {
+    "@type": "Rating",
+    "ratingValue": 5
+  },
+  "itemReviewed": {
+    "@id": "https://www.producthunt.com/products/folk-2"
+  }
+}

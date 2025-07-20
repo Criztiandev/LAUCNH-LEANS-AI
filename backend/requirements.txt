@@ -13,3 +13,34 @@ pytest-mock==3.14.0
 aiohttp==3.10.11
 beautifulsoup4==4.12.3
 lxml==5.3.0
+
+# Reddit API scraping
+praw==7.7.1
+
+# Facebook scraping
+requests-html==0.10.0
+demjson3==3.0.6
+
+# Twitter/X API
+tweepy==4.14.0
+
+# Instagram scraping
+instaloader==4.10.3
+
+# Google services
+google-api-python-client==2.108.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.1.0
+
+# App store scraping
+google-play-scraper==1.2.7
+# app-store-scraper==0.3.5  # Commented out due to dependency conflicts
+
+# Microsoft Store scraping
+requests>=2.27.0,<3.0.0
+selenium==4.15.2
+webdriver-manager==4.0.1
+
+# Additional utilities
+user-agent==0.1.10
+fake-useragent==1.4.0

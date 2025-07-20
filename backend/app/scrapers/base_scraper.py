@@ -26,6 +26,11 @@ class CompetitorData:
     source: str = ""
     source_url: Optional[str] = None
     confidence_score: float = 0.0
+    launch_date: Optional[str] = None
+    founder_ceo: Optional[str] = None
+    most_helpful_review: Optional[str] = None
+    review_count: Optional[int] = None
+    average_rating: Optional[float] = None
 
 
 @dataclass

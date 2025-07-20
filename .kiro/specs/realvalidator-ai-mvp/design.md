@@ -2,9 +2,11 @@
 
 ## Overview
 
-launch-lens AI is architected as a modern full-stack application using Next.js 14 with App Router for the frontend, Supabase for authentication and database, and FastAPI with Python for the scraping and AI analysis backend. The system follows a microservices approach where the frontend handles user interactions and data presentation, while the backend manages intensive scraping operations and AI processing asynchronously.
+launch-lens AI is architected as a modern full-stack SaaS idea validation platform using Next.js 14 with App Router for the frontend, Supabase for authentication and database, and FastAPI with Python for the scraping and AI analysis backend. The system follows a microservices approach where the frontend handles user interactions and data presentation, while the backend manages intensive scraping operations and AI processing asynchronously.
 
-The architecture prioritizes type safety through tRPC, real-time updates via Supabase subscriptions, and scalable background processing for data collection and analysis. The design ensures data security through Row Level Security (RLS) policies and maintains separation of concerns between user-facing operations and data processing workflows.
+The platform combines automated web scraping from 9 distinct sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search, Google Play Store, Apple App Store, Microsoft Store) with Google AI Studio's Gemini model to provide comprehensive validation reports. These reports include market opportunity analysis, competitive landscape assessment, user feedback sentiment analysis, and strategic recommendations with calculated market scores.
+
+The architecture prioritizes type safety through tRPC, real-time updates via Supabase subscriptions, and scalable background processing for data collection and analysis. The design ensures data security through Row Level Security (RLS) policies, maintains separation of concerns between user-facing operations and data processing workflows, and provides responsive mobile-optimized user experiences.
 
 ## Architecture
 
@@ -48,7 +50,7 @@ graph TB
 1. **User Interaction**: User submits validation request through Next.js frontend
 2. **Request Processing**: tRPC server creates validation record in Supabase with "processing" status
 3. **Background Trigger**: tRPC server triggers FastAPI scraping service asynchronously
-4. **Data Collection**: FastAPI orchestrates parallel scraping from 6 sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google)
+4. **Data Collection**: FastAPI orchestrates parallel scraping from 9 sources (Product Hunt, Reddit, Facebook, Twitter, Instagram, Google Search, Google Play Store, Apple App Store, Microsoft Store)
 5. **Data Storage**: Scraped competitors and feedback are stored in Supabase with validation relationships
 6. **AI Analysis**: Gemini AI processes scraped data to generate comprehensive analysis
 7. **Completion**: Validation status updated to "completed" with market score calculation
@@ -82,15 +84,18 @@ graph TB
 ### Backend Components (FastAPI)
 
 #### Scraping Architecture
-- **ScrapingService**: Orchestrates parallel scraping from all sources
-- **BaseScraper**: Abstract base class defining scraper interface
+- **ScrapingService**: Orchestrates parallel scraping from all sources with error handling for individual scraper failures
+- **BaseScraper**: Abstract base class defining scraper interface with standardized data extraction methods
 - **Source-Specific Scrapers**: 
-  - ProductHuntScraper: Extracts product data and competitor information
-  - RedditScraper: Searches relevant subreddits using PRAW
-  - FacebookScraper: Scrapes public groups and pages
-  - TwitterScraper: Extracts tweets and sentiment using API
-  - InstagramScraper: Hashtag and content analysis
-  - GoogleScraper: Search trends and competitor research
+  - ProductHuntScraper: Extracts product data and competitor information with user counts and pricing models
+  - RedditScraper: Searches relevant subreddits using Reddit API (PRAW) for user discussions and feedback
+  - FacebookScraper: Scrapes public groups and pages for user sentiment and discussions
+  - TwitterScraper: Extracts tweets and sentiment analysis for market feedback
+  - InstagramScraper: Hashtag and content analysis for social media presence
+  - GoogleSearchScraper: Search trends and competitor research with market intelligence
+  - GooglePlayStoreScraper: Android app data and reviews for mobile market analysis
+  - AppStoreScraper: iOS app data and reviews for mobile market analysis
+  - MicrosoftStoreScraper: Windows app data and reviews for desktop market analysis
 
 #### AI and Analysis
 - **AIService**: Integrates with Google AI Studio Gemini model
@@ -248,6 +253,28 @@ interface ValidationResults {
   aiAnalysis?: AIAnalysis;
 }
 ```
+
+## Performance and Responsive Design
+
+### Responsive Design Strategy
+- **Mobile-First Approach**: Design components with mobile devices as the primary target, then enhance for larger screens
+- **Tailwind CSS Breakpoints**: Utilize responsive utilities (sm:, md:, lg:, xl:) for adaptive layouts
+- **Touch-Friendly Interfaces**: Ensure buttons and interactive elements meet minimum touch target sizes (44px)
+- **Flexible Grid Systems**: Use CSS Grid and Flexbox for layouts that adapt to different screen sizes
+- **Progressive Enhancement**: Core functionality works on all devices, with enhanced features for capable devices
+
+### Performance Optimization
+- **Loading States**: Implement skeleton screens and progress indicators during data fetching
+- **Real-time Updates**: Use Supabase subscriptions to provide live status updates without polling
+- **Code Splitting**: Leverage Next.js automatic code splitting for faster initial page loads
+- **Image Optimization**: Use Next.js Image component for optimized image delivery
+- **Caching Strategy**: Implement appropriate caching for static content and API responses
+
+### User Experience Requirements
+- **3-Second Load Time**: Cached content and critical paths load within 3 seconds
+- **Offline Graceful Degradation**: Display cached data and appropriate messaging when offline
+- **Consistent Cross-Device Experience**: Maintain design consistency across mobile, tablet, and desktop
+- **Accessibility Compliance**: Follow WCAG 2.1 guidelines for inclusive design
 
 ## Error Handling
 

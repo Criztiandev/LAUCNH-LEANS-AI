@@ -37,7 +37,17 @@ class SupabaseService:
         """
         try:
             update_data = {"status": status}
-            update_data.update(kwargs)
+            
+            # Handle special fields that need JSON serialization
+            for key, value in kwargs.items():
+                if key in ['sources_scraped', 'processing_metadata'] and value is not None:
+                    # Ensure JSON serializable
+                    if isinstance(value, (dict, list)):
+                        update_data[key] = value
+                    else:
+                        update_data[key] = str(value)
+                else:
+                    update_data[key] = value
             
             result = self.client.table("validations").update(update_data).eq("id", validation_id).execute()
             

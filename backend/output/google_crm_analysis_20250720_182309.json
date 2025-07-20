@@ -1,0 +1,137 @@
+{
+  "timestamp": "2025-07-20T18:23:09.622025",
+  "search_keywords": [
+    "CRM",
+    "customer relationship management",
+    "sales management"
+  ],
+  "business_idea": "A CRM software for small businesses to manage customer relationships and sales pipeline",
+  "total_competitors": 8,
+  "data_source": "Google Search",
+  "competitors": [
+    {
+      "name": "Zoho",
+      "description": "\n                Zoho CRM is a cloud-based customer relationship management software for managing \n                sales, marketing, and customer support activities. Used by 250,000+ businesses. \n    ",
+      "website": "https://www.zoho.com/crm/",
+      "confidence_score": 0.5,
+      "pricing_model": "Contact for pricing",
+      "estimated_users": 250000,
+      "rating": null,
+      "source": "Google Search"
+    },
+    {
+      "name": "Monday",
+      "description": "\n                Monday.com CRM combines project management with customer relationship management. \n                Trusted by 180,000+ customers worldwide. Excellent for team collaboration. \n        ",
+      "website": "https://monday.com/crm/",
+      "confidence_score": 0.5,
+      "pricing_model": "Contact for pricing",
+      "estimated_users": 180000,
+      "rating": null,
+      "source": "Google Search"
+    },
+    {
+      "name": "ActiveCampaign",
+      "description": "\n                ActiveCampaign combines email marketing, marketing automation, and CRM. \n                Over 180,000 customers in 170 countries. Excellent for marketing automation. \n                ",
+      "website": "https://www.activecampaign.com/",
+      "confidence_score": 0.5,
+      "pricing_model": "Contact for pricing",
+      "estimated_users": 180000,
+      "rating": null,
+      "source": "Google Search"
+    },
+    {
+      "name": "Salesforce",
+      "description": "\n                Salesforce is the world's #1 CRM platform trusted by 150,000+ companies. \n                Our cloud-based CRM software helps businesses manage customer relationships, \n               ",
+      "website": "https://www.salesforce.com/",
+      "confidence_score": 0.5,
+      "pricing_model": "Contact for pricing",
+      "estimated_users": 150000,
+      "rating": null,
+      "source": "Google Search"
+    },
+    {
+      "name": "Hubspot",
+      "description": "\n                HubSpot's free CRM software organizes, tracks, and nurtures your leads and customers. \n                Used by 100,000+ businesses worldwide. Free forever for unlimited users. \n      ",
+      "website": "https://www.hubspot.com/products/crm",
+      "confidence_score": 0.6,
+      "pricing_model": "Freemium",
+      "estimated_users": 100000,
+      "rating": null,
+      "source": "Google Search"
+    },
+    {
+      "name": "Pipedrive",
+      "description": "\n                Pipedrive is a sales CRM and pipeline management tool that helps 95,000+ sales teams \n                organize leads and deals. Simple, visual, and effective CRM software. \n          ",
+      "website": "https://www.pipedrive.com/",
+      "confidence_score": 0.5,
+      "pricing_model": "Contact for pricing",
+      "estimated_users": null,
+      "rating": null,
+      "source": "Google Search"
+    },
+    {
+      "name": "Best CRM Software",
+      "description": "\n                Compare the best CRM software based on 50,000+ user reviews. Top-rated CRM solutions \n                include Salesforce (4.4/5), HubSpot (4.5/5), and Pipedrive (4.2/5). \n            ",
+      "website": "https://www.g2.com/categories/crm",
+      "confidence_score": 0.6,
+      "pricing_model": "Contact for pricing",
+      "estimated_users": null,
+      "rating": 4.4,
+      "source": "Google Search"
+    },
+    {
+      "name": "Marketsandmarkets",
+      "description": "\n                The global CRM software market size is projected to grow from $58.04 billion in 2023 \n                to $145.79 billion by 2029, at a CAGR of 16.9%. Key drivers include digital trans",
+      "website": "https://www.marketsandmarkets.com/Market-Reports/customer-relationship-management-crm-market-989.html",
+      "confidence_score": 0.5,
+      "pricing_model": "From $58.04/month",
+      "estimated_users": null,
+      "rating": null,
+      "source": "Google Search"
+    }
+  ],
+  "feedback": [
+    {
+      "text": "\n        Customer Relationship Management (CRM) software helps businesses manage interactions \n        with current and potential customers. The global CRM market is valued at $58+ billion \n        and growing at 16.9% CAGR. Leading solutions include Salesforce (market leader with 19.8% share), \n        HubSpot (fastest growing), and Microsoft Dynamics 365. Key features include contact management, \n        sales automation, marketing integration, and analytics.\n    ",
+      "sentiment": "neutral",
+      "sentiment_score": 0.0,
+      "source_url": "https://www.google.com/search?q=CRM+software",
+      "type": "featured_snippet"
+    },
+    {
+      "text": "\n                Salesforce is the world's #1 CRM platform trusted by 150,000+ companies. \n                Our cloud-based CRM software helps businesses manage customer relationships, \n                sales, and marketing. Free trial available. Starting at $25/user/month.\n            ",
+      "sentiment": "neutral",
+      "sentiment_score": 0.0,
+      "source_url": "https://www.salesforce.com/",
+      "type": "search_result"
+    },
+    {
+      "text": "\n                HubSpot's free CRM software organizes, tracks, and nurtures your leads and customers. \n                Used by 100,000+ businesses worldwide. Free forever for unlimited users. \n                Premium features start at $45/month.\n            ",
+      "sentiment": "neutral",
+      "sentiment_score": 0.0,
+      "source_url": "https://www.hubspot.com/products/crm",
+      "type": "search_result"
+    },
+    {
+      "text": "\n                Compare the best CRM software based on 50,000+ user reviews. Top-rated CRM solutions \n                include Salesforce (4.4/5), HubSpot (4.5/5), and Pipedrive (4.2/5). \n                Find the perfect CRM for your business needs.\n            ",
+      "sentiment": "positive",
+      "sentiment_score": 0.5,
+      "source_url": "https://www.g2.com/categories/crm",
+      "type": "search_result"
+    }
+  ],
+  "market_insights": {
+    "total_organic_results": 10,
+    "featured_snippet_found": true,
+    "related_searches": [
+      "best crm software 2024",
+      "crm software comparison",
+      "free crm software",
+      "salesforce alternatives",
+      "crm market size",
+      "small business crm",
+      "crm pricing comparison",
+      "crm software reviews"
+    ]
+  }
+}

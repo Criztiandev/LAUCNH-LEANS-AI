@@ -134,27 +134,35 @@ class ProductHuntScraper(BaseScraper):
                     return competitors
                 
                 html = await response.text()
-                soup = BeautifulSoup(html, 'html.parser')
                 
-                # Find product cards using the specific Product Hunt class structure
-                product_cards = soup.find_all('div', class_='styles_item__Dk_nz')
-                
-                if not product_cards:
-                    # Try alternative selectors for different page layouts
-                    product_cards = soup.find_all(['div', 'article'], class_=re.compile(r'.*product.*|.*item.*'))
+                # Product Hunt now uses React with embedded JSON data
+                # Try to extract product data from the embedded JSON
+                json_competitors = self._extract_from_json_data(html, keyword)
+                if json_competitors:
+                    competitors.extend(json_competitors)
+                else:
+                    # Fallback to HTML parsing if JSON extraction fails
+                    soup = BeautifulSoup(html, 'html.parser')
                     
-                if not product_cards:
-                    # Fallback to generic post links
-                    product_cards = soup.find_all('a', href=re.compile(r'/posts/'))
-                
-                for card in product_cards[:8]:  # Limit to 8 results per keyword
-                    try:
-                        competitor = self._extract_competitor_from_card(card, keyword)
-                        if competitor:
-                            competitors.append(competitor)
-                    except Exception as e:
-                        logger.debug(f"Failed to extract competitor from card: {str(e)}")
-                        continue
+                    # Find product cards using the specific Product Hunt class structure
+                    product_cards = soup.find_all('div', class_='styles_item__Dk_nz')
+                    
+                    if not product_cards:
+                        # Try alternative selectors for different page layouts
+                        product_cards = soup.find_all(['div', 'article'], class_=re.compile(r'.*product.*|.*item.*'))
+                        
+                    if not product_cards:
+                        # Fallback to generic post links
+                        product_cards = soup.find_all('a', href=re.compile(r'/posts/'))
+                    
+                    for card in product_cards[:8]:  # Limit to 8 results per keyword
+                        try:
+                            competitor = self._extract_competitor_from_card(card, keyword)
+                            if competitor:
+                                competitors.append(competitor)
+                        except Exception as e:
+                            logger.debug(f"Failed to extract competitor from card: {str(e)}")
+                            continue
                         
         except Exception as e:
             logger.error(f"Failed to search products for keyword '{keyword}': {str(e)}")
@@ -277,7 +285,7 @@ class ProductHuntScraper(BaseScraper):
             except Exception as e:
                 logger.debug(f"Failed to resolve external link for {competitor.name}: {str(e)}")
         
-        # Enrich with Product Hunt page data if we have a source URL
+        # Enrich with detailed Product Hunt page data if we have a source URL
         if competitor.source_url:
             try:
                 async with self.session.get(competitor.source_url) as response:
@@ -286,6 +294,9 @@ class ProductHuntScraper(BaseScraper):
                     
                     html = await response.text()
                     soup = BeautifulSoup(html, 'html.parser')
+                    
+                    # Extract structured data (JSON-LD) for detailed product info
+                    await self._extract_structured_data(competitor, soup)
                     
                     # Try to find website link if we don't have one
                     if not competitor.website:
@@ -330,6 +341,92 @@ class ProductHuntScraper(BaseScraper):
         # Increase confidence score for enriched data
         competitor.confidence_score = min(0.95, competitor.confidence_score + 0.15)
     
+    async def _extract_structured_data(self, competitor: CompetitorData, soup: BeautifulSoup) -> None:
+        """
+        Extract additional data from JSON-LD structured data on the product page.
+        
+        Args:
+            competitor: CompetitorData object to enrich
+            soup: BeautifulSoup object of the product page
+        """
+        try:
+            import json
+            
+            # Find JSON-LD scripts
+            json_ld_scripts = soup.find_all('script', type='application/ld+json')
+            
+            for script in json_ld_scripts:
+                try:
+                    if not script.string:
+                        continue
+                        
+                    structured_data = json.loads(script.string)
+                    
+                    # Handle both single objects and arrays
+                    if isinstance(structured_data, list):
+                        data_items = structured_data
+                    else:
+                        data_items = [structured_data]
+                    
+                    for item in data_items:
+                        # Extract product information
+                        if item.get('@type') in ['WebApplication', 'Product'] or (isinstance(item.get('@type'), list) and any(t in ['WebApplication', 'Product'] for t in item.get('@type', []))):
+                            # Extract launch date
+                            if 'datePublished' in item:
+                                competitor.launch_date = item['datePublished'][:10]  # Just the date part
+                            
+                            # Extract founder/CEO information
+                            if 'author' in item and isinstance(item['author'], list):
+                                # Get the first author as the primary founder/CEO
+                                if item['author']:
+                                    first_author = item['author'][0]
+                                    if isinstance(first_author, dict) and 'name' in first_author:
+                                        competitor.founder_ceo = first_author['name']
+                            
+                            # Extract rating information
+                            if 'aggregateRating' in item:
+                                rating_info = item['aggregateRating']
+                                if 'ratingValue' in rating_info:
+                                    competitor.average_rating = float(rating_info['ratingValue'])
+                                if 'ratingCount' in rating_info:
+                                    competitor.review_count = int(rating_info['ratingCount'])
+                            
+                            # Update description if we have a more detailed one
+                            if 'description' in item and len(item['description']) > len(competitor.description or ""):
+                                competitor.description = item['description']
+                        
+                        # Extract review information
+                        elif item.get('@type') == 'Review':
+                            # Store the most helpful review (first one found, as they're usually sorted by helpfulness)
+                            if not competitor.most_helpful_review and 'reviewBody' in item:
+                                review_text = item['reviewBody']
+                                if len(review_text) > 200:
+                                    review_text = review_text[:200] + "..."
+                                
+                                # Add author name if available
+                                if 'author' in item and isinstance(item['author'], dict) and 'name' in item['author']:
+                                    author_name = item['author']['name']
+                                    review_text = f'"{review_text}" - {author_name}'
+                                
+                                competitor.most_helpful_review = review_text
+                            if 'reviewBody' in item and 'reviewRating' in item:
+                                rating_value = item['reviewRating'].get('ratingValue', 0)
+                                # Consider reviews with rating 4+ as potentially helpful
+                                if rating_value >= 4:
+                                    review_text = item['reviewBody']
+                                    # Store the review if it's substantial (more than 50 characters)
+                                    if len(review_text) > 50:
+                                        competitor.most_helpful_review = review_text
+                
+                except json.JSONDecodeError:
+                    continue
+                except Exception as e:
+                    logger.debug(f"Failed to process structured data: {str(e)}")
+                    continue
+                    
+        except Exception as e:
+            logger.debug(f"Failed to extract structured data for {competitor.name}: {str(e)}")
+    
     def _deduplicate_competitors(self, competitors: List[CompetitorData]) -> List[CompetitorData]:
         """
         Remove duplicate competitors based on name similarity.
@@ -362,6 +459,168 @@ class ProductHuntScraper(BaseScraper):
                 seen_names.add(normalized_name)
         
         return unique_competitors
+    
+    def _extract_from_json_data(self, html: str, keyword: str) -> List[CompetitorData]:
+        """
+        Extract product data from embedded JSON in Product Hunt's React app.
+        
+        Args:
+            html: The HTML content containing embedded JSON
+            keyword: The search keyword used
+            
+        Returns:
+            List of CompetitorData objects
+        """
+        competitors = []
+        
+        try:
+            import json
+            
+            # Look for the specific pattern we found in the debug output
+            # The data is in: {"data":{"productSearch":{"edges":[...]}}}
+            
+            # Pattern 1: Extract the complete data object containing productSearch
+            data_pattern = r'"data":\s*(\{"productSearch":\{"__typename":"ProductSearchConnection","edges":\[.*?\]\})'
+            matches = re.findall(data_pattern, html, re.DOTALL)
+            
+            for match in matches:
+                try:
+                    # Add closing brace to complete the JSON
+                    complete_json = match + '}'
+                    # Clean up the JSON
+                    cleaned_json = complete_json.replace('undefined', 'null')
+                    
+                    data = json.loads(cleaned_json)
+                    
+                    if 'productSearch' in data and 'edges' in data['productSearch']:
+                        edges = data['productSearch']['edges']
+                        logger.debug(f"Found {len(edges)} products in productSearch")
+                        
+                        for edge in edges:
+                            if 'node' in edge:
+                                product = edge['node']
+                                competitor = self._extract_competitor_from_json_product(product, keyword)
+                                if competitor:
+                                    competitors.append(competitor)
+                    
+                except json.JSONDecodeError as e:
+                    logger.debug(f"JSON decode error for data pattern: {str(e)}")
+                    continue
+                except Exception as e:
+                    logger.debug(f"Failed to parse data pattern: {str(e)}")
+                    continue
+            
+            # Pattern 2: If the above didn't work, try extracting individual products
+            if not competitors:
+                # Look for individual product nodes
+                product_pattern = r'\{"__typename":"Product","id":"[^"]*","name":"([^"]*)","tagline":"([^"]*)","slug":"([^"]*)","reviewsRating":([^,]*),"reviewsCount":([^,]*)[^}]*\}'
+                product_matches = re.findall(product_pattern, html)
+                
+                for match in product_matches:
+                    try:
+                        name, tagline, slug, rating, review_count = match
+                        
+                        # Create a pindow\[object
+                        product = {
+                            'name': name,
+                            'tagline': tagline,
+                            'slug': slug,
+                            'reviewsRating': float(rating) if rating != 'null' else None,
+                            'reviewsCount': int(review_count) if review_count != 'null' else None
+                        }
+                        
+                        competitor = self._extract_competitor_from_json_product(product, keyword)
+                        if competitor:
+                            competitors.append(competitor)
+                            
+                    except Exception as e:
+                        logger.debug(f"Failed to parse individual product: {str(e)}")
+                        continue
+            
+            # Pattern 3: Try the Apollo SSR data transport as fallback
+            if not competitors:
+                apollo_pattern = r'"_R_[^"]*":\{"data":\{"productSearch":\{"__typename":"ProductSearchConnection","edges":\[([^\]]*)\]'
+                apollo_matches = re.findall(apollo_pattern, html, re.DOTALL)
+                
+                for match in apollo_matches:
+                    try:
+                        # Parse the edges array content
+                        edges_json = f'[{match}]'
+                        cleaned_edges = edges_json.replace('undefined', 'null')
+                        edges = json.loads(cleaned_edges)
+                        
+                        logger.debug(f"Found {len(edges)} products in Apollo data")
+                        
+                        for edge in edges:
+                            if isinstance(edge, dict) and 'node' in edge:
+                                product = edge['node']
+                                competitor = self._extract_competitor_from_json_product(product, keyword)
+                                if competitor:
+                                    competitors.append(competitor)
+                                    
+                    except json.JSONDecodeError as e:
+                        logger.debug(f"JSON decode error for Apollo pattern: {str(e)}")
+                        continue
+                    except Exception as e:
+                        logger.debug(f"Failed to parse Apollo data: {str(e)}")
+                        continue
+                        
+        except Exception as e:
+            logger.debug(f"Failed to extract from JSON data: {str(e)}")
+        
+        logger.debug(f"Extracted {len(competitors)} competitors from JSON data")
+        return competitors
+    
+    def _extract_competitor_from_json_product(self, product: Dict[str, Any], keyword: str) -> Optional[CompetitorData]:
+        """
+        Extract competitor data from a JSON product object.
+        
+        Args:
+            product: JSON product object from Product Hunt API
+            keyword: The search keyword used
+            
+        Returns:
+            CompetitorData object or None if extraction fails
+        """
+        try:
+            name = product.get('name', '').strip()
+            if not name:
+                return None
+            
+            description = product.get('tagline', '').strip()
+            slug = product.get('slug', '')
+            
+            # Build Product Hunt URL
+            source_url = f"{self.base_url}/posts/{slug}" if slug else None
+            
+            # Extract ratings as a proxy for popularity
+            reviews_count = product.get('reviewsCount', 0)
+            reviews_rating = product.get('reviewsRating', 0)
+            
+            # Estimate users based on reviews (reviews typically represent ~1-5% of users)
+            estimated_users = None
+            if reviews_count > 0:
+                # Conservative estimate: each review represents ~50 users
+                estimated_users = reviews_count * 50
+            
+            # Check if product is still online
+            is_online = not product.get('isNoLongerOnline', False)
+            
+            return CompetitorData(
+                name=name,
+                description=description,
+                website=None,  # Will be resolved later if needed
+                estimated_users=estimated_users,
+                estimated_revenue=None,  # Will be estimated later
+                pricing_model=None,  # Will be enriched later
+                source=self.source_name,
+                source_url=source_url,
+                confidence_score=0.9 if is_online else 0.6  # Higher confidence for JSON data
+            )
+            
+        except Exception as e:
+            logger.debug(f"Failed to extract competitor from JSON product: {str(e)}")
+            return None
     
     def validate_config(self) -> bool:
         """
